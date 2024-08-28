@@ -1,4 +1,4 @@
-# Multi-agent Minimalistic Gridworld Environment (MultiGrid)
+# EasyMARL
 
 Single-file MARL implementations with sample, customizable, <u>discrete</u> grid world environments. Adapted from natashamjacques/multigrid.
 
