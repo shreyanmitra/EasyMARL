@@ -1,0 +1,4 @@
+mode: 'PPO'
+num_iterations: 5
+load_model_start_path: 'PPO_agent_'
+clip: 0.2
