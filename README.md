@@ -23,7 +23,7 @@ Available command line arguments are ``env_name``, ``mode``, ``with_expert``, ``
 
 A Sphinx documentation of the source code has not been created yet. We will update the README with a link to the readthedocs when completed.
 
-##G UI
+## GUI
 The user interface provides a way to train and visualize agents without any code.
 To run, clone this repo and type the following on the command line:
 
