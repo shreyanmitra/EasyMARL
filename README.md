@@ -13,7 +13,7 @@ Single-file MARL implementations with sample, customizable, <u>discrete</u> grid
 ## Metacontroller
 The metacontroller (housed at multiagent_metacontroller.py) is the middle man between the agents and the MARL environment. While we tried to keep its implementation as generic as possible, it might need to be updates as new reinforcement learning methods are added to agent.py
 
-##Quickstart
+## Quickstart
 To run, clone this repo and type the following on the command line:
 ```
 python main.py <arguments>
@@ -23,7 +23,7 @@ Available command line arguments are ``env_name``, ``mode``, ``with_expert``, ``
 
 A Sphinx documentation of the source code has not been created yet. We will update the README with a link to the readthedocs when completed.
 
-##GUI
+##G UI
 The user interface provides a way to train and visualize agents without any code.
 To run, clone this repo and type the following on the command line:
 
@@ -32,5 +32,5 @@ python gui.py
 ```
 
 
-##Contribute
+## Contribute
 Feel free to add new implementations or fix any issues by filing a pull request.
