@@ -2,6 +2,8 @@
 
 Single-file MARL implementations with sample, customizable, <u>discrete</u> grid world environments. Adapted from natashamjacques/multigrid.
 
+**NOTE: This project is in progress. Source code is not stable and unintended behavior might emerge while running. Please notify us of issues so that we can fix them**
+
 ## Currently Supported Algorithms
 (Help us by adding some!)
 
