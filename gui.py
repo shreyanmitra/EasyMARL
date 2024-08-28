@@ -34,7 +34,8 @@ def buttonClicked(env, method):
 
 
 with gr.Blocks() as interface:
-    gr.Markdown("# EasyMarl <br> This is the EasyMARL GUI. We hope to include options for more finegrained training control in the future!")
+    gr.Markdown("# EasyMarl" )
+    gr.Markdown("This is the EasyMARL GUI. We hope to include options for more finegrained training control in the future!")
     with gr.Column():
         env = gr.Dropdown(label="Environment Name", choices = AVAILABLE_ENVS)
         method = gr.Dropdown(label = "Method", choices = ["ppo"])
