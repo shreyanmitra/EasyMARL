@@ -47,7 +47,142 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-node-
         
+    - name: Create required React files
+      run: |
+        cd react-frontend
+        
+        # Ensure src directory exists
+        mkdir -p src/styles
+        
+        # Create index.js if it doesn't exist
+        if [ ! -f "src/index.js" ]; then
+          echo "Creating src/index.js..."
+          cat > src/index.js << 'EOF'
+        import React from 'react';
+        import ReactDOM from 'react-dom/client';
+        import './styles/index.css';
+        import App from './App';
+
+        // Create root element and render the App
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(
+          <React.StrictMode>
+            <App />
+          </React.StrictMode>
+        );
+        EOF
+        fi
+        
+        # Create App.css if it doesn't exist
+        if [ ! -f "src/App.css" ]; then
+          echo "Creating src/App.css..."
+          cat > src/App.css << 'EOF'
+        /* EasyMARL App Component Styles */
+        .App {
+          text-align: center;
+        }
+
+        .container {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 0 20px;
+        }
+
+        .main-content {
+          min-height: calc(100vh - 80px);
+          padding: 20px 0;
+        }
+        EOF
+        fi
+        
+        # Create index.css if it doesn't exist
+        if [ ! -f "src/styles/index.css" ]; then
+          echo "Creating src/styles/index.css..."
+          cat > src/styles/index.css << 'EOF'
+        /* EasyMARL React App Global Styles */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+
+        body {
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          min-height: 100vh;
+        }
+        EOF
+        fi
+        
+        echo "✅ React source files created/verified:"
+        echo "📁 src/ directory contents:"
+        ls -la src/
+        echo "📁 src/styles/ directory contents:"
+        ls -la src/styles/ || echo "styles directory not found"
+        
     - name: Create required public files
+      run: |
+        cd react-frontend
+        
+        # Ensure public directory exists
+        mkdir -p public
+        cd public
+        
+        # Create index.html if it doesn't exist
+        if [ ! -f "index.html" ]; then
+          echo "Creating index.html..."
+          cat > index.html << 'EOF'
+        <!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="utf-8" />
+            <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            <meta name="theme-color" content="#667eea" />
+            <meta name="description" content="EasyMARL - Multi-Agent RL Research Platform" />
+            <title>EasyMARL</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+          </head>
+          <body>
+            <noscript>You need to enable JavaScript to run this app.</noscript>
+            <div id="root"></div>
+          </body>
+        </html>
+        EOF
+        fi
+        
+        # Create manifest.json if it doesn't exist
+        if [ ! -f "manifest.json" ]; then
+          echo "Creating manifest.json..."
+          cat > manifest.json << 'EOF'
+        {
+          "short_name": "EasyMARL",
+          "name": "EasyMARL Research Platform",
+          "start_url": ".",
+          "display": "standalone",
+          "theme_color": "#667eea",
+          "background_color": "#ffffff"
+        }
+        EOF
+        fi
+        
+        # Create favicon.ico if it doesn't exist
+        if [ ! -f "favicon.ico" ]; then
+          echo "Creating favicon.ico..."
+          cat > favicon.ico << 'EOF'
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+          <rect width="100" height="100" fill="#667eea"/>
+          <text x="50" y="65" font-size="60" text-anchor="middle" fill="white">E</text>
+        </svg>
+        EOF
+        fi
+        
+        echo "✅ Public files created/verified:"
+        ls -la
       run: |
         cd react-frontend
         
