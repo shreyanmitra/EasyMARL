@@ -22,7 +22,11 @@ import gym
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Import needed to trigger env registration
+# Import needed to trigger env registration - Updated for new directory structure
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 from envs import gym_multigrid
 from envs.gym_multigrid import multigrid_envs
 

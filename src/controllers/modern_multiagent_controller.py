@@ -44,6 +44,7 @@ from PIL import Image # Python Imaging Library for image processing
 # Import framework components
 from algorithms import create_marl_algorithm, list_available_algorithms  # Algorithm factory and registry
 from utils import plot_single_frame, make_video  # Visualization utilities
+from research_interface import get_research_interface, ExperimentConfig  # Research features
 
 
 class ModernMultiAgentController:
@@ -807,4 +808,212 @@ class ModernMultiAgentController:
             'best_performance': self.best_performance,
             'mean_episode_length': np.mean(self.episode_lengths),
             'algorithm': self.algorithm_name
+        }
+    
+    def get_research_metrics(self) -> Dict[str, Any]:
+        """Get detailed research-oriented metrics and analysis."""
+        if not self.episode_rewards:
+            return {}
+        
+        stats = self.get_statistics()
+        
+        # Add advanced research metrics
+        rewards = np.array(self.episode_rewards)
+        
+        # Performance stability metrics
+        if len(rewards) >= 100:
+            recent_rewards = rewards[-100:]
+            early_rewards = rewards[:100] if len(rewards) > 100 else rewards
+            
+            stats.update({
+                'performance_improvement': np.mean(recent_rewards) - np.mean(early_rewards),
+                'stability_coefficient': np.std(recent_rewards) / np.mean(recent_rewards) if np.mean(recent_rewards) != 0 else 0,
+                'convergence_rate': self._calculate_convergence_rate(rewards),
+                'sample_efficiency': self._calculate_sample_efficiency(),
+            })
+        
+        # Learning curve analysis
+        if len(rewards) >= 10:
+            stats.update({
+                'learning_trend': self._calculate_learning_trend(rewards),
+                'plateau_detection': self._detect_plateau(rewards),
+                'exploration_decay': self._analyze_exploration_decay()
+            })
+        
+        # Algorithm-specific metrics
+        if hasattr(self.algorithm, 'get_research_metrics'):
+            algo_metrics = self.algorithm.get_research_metrics()
+            stats.update({f'algorithm_{k}': v for k, v in algo_metrics.items()})
+        
+        return stats
+    
+    def _calculate_convergence_rate(self, rewards: np.ndarray) -> float:
+        """Calculate the rate of convergence based on reward improvement."""
+        if len(rewards) < 50:
+            return 0.0
+        
+        # Fit a line to recent rewards and calculate slope
+        x = np.arange(len(rewards))
+        coeffs = np.polyfit(x, rewards, 1)
+        return float(coeffs[0])  # Slope indicates convergence rate
+    
+    def _calculate_sample_efficiency(self) -> float:
+        """Calculate sample efficiency metric."""
+        if not self.episode_rewards or self.total_steps == 0:
+            return 0.0
+        
+        # Simple metric: reward improvement per step
+        if len(self.episode_rewards) >= 2:
+            improvement = self.episode_rewards[-1] - self.episode_rewards[0]
+            return improvement / self.total_steps
+        return 0.0
+    
+    def _calculate_learning_trend(self, rewards: np.ndarray) -> str:
+        """Analyze the current learning trend."""
+        if len(rewards) < 20:
+            return "insufficient_data"
+        
+        recent = rewards[-20:]
+        trend = np.polyfit(range(len(recent)), recent, 1)[0]
+        
+        if trend > 0.1:
+            return "improving"
+        elif trend < -0.1:
+            return "degrading"
+        else:
+            return "stable"
+    
+    def _detect_plateau(self, rewards: np.ndarray, window_size: int = 50) -> bool:
+        """Detect if learning has plateaued."""
+        if len(rewards) < window_size * 2:
+            return False
+        
+        recent_window = rewards[-window_size:]
+        previous_window = rewards[-window_size*2:-window_size]
+        
+        # Check if recent performance is not significantly different
+        recent_mean = np.mean(recent_window)
+        previous_mean = np.mean(previous_window)
+        
+        improvement = (recent_mean - previous_mean) / abs(previous_mean) if previous_mean != 0 else 0
+        return abs(improvement) < 0.05  # Less than 5% improvement
+    
+    def _analyze_exploration_decay(self) -> Dict[str, float]:
+        """Analyze exploration decay patterns."""
+        exploration_metrics = {}
+        
+        # Get exploration data from algorithm if available
+        if hasattr(self.algorithm, 'agents'):
+            for i, agent in enumerate(self.algorithm.agents):
+                if hasattr(agent, 'epsilon'):
+                    exploration_metrics[f'agent_{i}_epsilon'] = agent.epsilon
+                elif hasattr(agent, 'exploration_noise'):
+                    exploration_metrics[f'agent_{i}_noise'] = agent.exploration_noise
+        
+        return exploration_metrics
+    
+    def generate_research_report(self) -> Dict[str, Any]:
+        """Generate a comprehensive research report."""
+        report = {
+            'experiment_info': {
+                'algorithm': self.algorithm_name,
+                'environment': self.env.__class__.__name__,
+                'n_agents': self.n_agents,
+                'device': str(self.device),
+                'training_mode': self.training
+            },
+            'performance_metrics': self.get_research_metrics(),
+            'training_summary': {
+                'total_episodes': len(self.episode_rewards),
+                'total_steps': self.total_steps,
+                'training_time': getattr(self, 'training_time', 0),
+                'best_performance': self.best_performance
+            }
+        }
+        
+        # Add algorithm-specific information
+        research_interface = get_research_interface()
+        algo_info = research_interface.discovery.get_algorithm_info(self.algorithm_name)
+        if algo_info:
+            report['algorithm_info'] = algo_info
+        
+        # Add configuration details
+        report['configuration'] = {
+            'hyperparameters': self._extract_hyperparameters(),
+            'network_architecture': self._extract_network_info(),
+            'training_parameters': self._extract_training_params()
+        }
+        
+        return report
+    
+    def _extract_hyperparameters(self) -> Dict[str, Any]:
+        """Extract current hyperparameters."""
+        params = {}
+        
+        if hasattr(self.algorithm, 'agents') and self.algorithm.agents:
+            agent = self.algorithm.agents[0]
+            
+            # Common hyperparameters
+            if hasattr(agent, 'learning_rate'):
+                params['learning_rate'] = agent.learning_rate
+            if hasattr(agent, 'gamma'):
+                params['gamma'] = agent.gamma
+            if hasattr(agent, 'epsilon'):
+                params['epsilon'] = agent.epsilon
+            
+            # Algorithm-specific parameters
+            if hasattr(agent, 'clip_ratio'):
+                params['clip_ratio'] = agent.clip_ratio
+            if hasattr(agent, 'entropy_coef'):
+                params['entropy_coef'] = agent.entropy_coef
+        
+        return params
+    
+    def _extract_network_info(self) -> Dict[str, Any]:
+        """Extract network architecture information."""
+        network_info = {}
+        
+        if hasattr(self.algorithm, 'agents') and self.algorithm.agents:
+            agent = self.algorithm.agents[0]
+            
+            if hasattr(agent, 'policy_network'):
+                network = agent.policy_network
+                network_info['policy_network'] = self._describe_network(network)
+            
+            if hasattr(agent, 'value_network'):
+                network = agent.value_network
+                network_info['value_network'] = self._describe_network(network)
+        
+        return network_info
+    
+    def _describe_network(self, network) -> Dict[str, Any]:
+        """Describe a neural network's architecture."""
+        if network is None:
+            return {}
+        
+        info = {
+            'type': network.__class__.__name__,
+            'parameters': sum(p.numel() for p in network.parameters() if p.requires_grad),
+            'layers': []
+        }
+        
+        # Add layer information if accessible
+        for name, module in network.named_modules():
+            if len(list(module.children())) == 0:  # Leaf module
+                info['layers'].append({
+                    'name': name,
+                    'type': module.__class__.__name__
+                })
+        
+        return info
+    
+    def _extract_training_params(self) -> Dict[str, Any]:
+        """Extract training-related parameters."""
+        return {
+            'max_steps_per_episode': self.config.get('max_steps', 100),
+            'log_interval': self.config.get('log_interval', 100),
+            'save_interval': self.config.get('save_interval', 1000),
+            'eval_interval': self.config.get('eval_interval', 500),
+            'use_wandb': self.config.get('use_wandb', False),
+            'seed': self.config.get('seed', 42)
         }

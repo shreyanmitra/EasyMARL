@@ -8,6 +8,8 @@ import AlgorithmsPage from './pages/AlgorithmsPage';
 import EnvironmentsPage from './pages/EnvironmentsPage';
 import HelpPage from './pages/HelpPage';
 import TutorialPage from './pages/TutorialPage';
+import ResearchPage from './pages/ResearchPage';
+import ManualControl from './components/ManualControl';
 import './App.css';
 
 /**
@@ -37,8 +39,14 @@ function App() {
             {/* Training Page - Start and Monitor Training */}
             <Route path="/training" element={<TrainingPage />} />
             
+            {/* Manual Control Page - Interactive Environment Control */}
+            <Route path="/manual-control" element={<ManualControl />} />
+            
             {/* Algorithms Page - Browse and Learn About Algorithms */}
             <Route path="/algorithms" element={<AlgorithmsPage />} />
+            
+            {/* Research Page - Advanced Algorithm Discovery and Experimentation */}
+            <Route path="/research" element={<ResearchPage />} />
             
             {/* Environments Page - Explore Available Environments */}
             <Route path="/environments" element={<EnvironmentsPage />} />

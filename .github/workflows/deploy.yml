@@ -1,33 +1,79 @@
-name: Deploy React App to GitHub Pages
+name: Deploy EasyMARL
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout
+    - name: Checkout code
       uses: actions/checkout@v3
       
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
         node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: react-frontend/package-lock.json
+        
+    - name: Create required public files
+      run: |
+        cd react-frontend
+        mkdir -p public
+        cd public
+        
+        # Create index.html
+        cat > index.html << 'EOF'
+        <!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="utf-8" />
+            <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            <meta name="theme-color" content="#667eea" />
+            <meta name="description" content="EasyMARL - Multi-Agent RL Research Platform" />
+            <title>EasyMARL</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+          </head>
+          <body>
+            <noscript>You need to enable JavaScript to run this app.</noscript>
+            <div id="root"></div>
+          </body>
+        </html>
+        EOF
+        
+        # Create manifest.json
+        cat > manifest.json << 'EOF'
+        {
+          "short_name": "EasyMARL",
+          "name": "EasyMARL Research Platform",
+          "start_url": ".",
+          "display": "standalone",
+          "theme_color": "#667eea",
+          "background_color": "#ffffff"
+        }
+        EOF
+        
+        # Create a simple text-based favicon
+        echo "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>" > favicon.ico
         
     - name: Install dependencies
       run: |
         cd react-frontend
-        npm install
+        npm ci || npm install
         
-    - name: Build
+    - name: Build React app
       run: |
         cd react-frontend
-        npm run build
+        CI=false npm run build
         
-    - name: Deploy
+    - name: Deploy to GitHub Pages
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}

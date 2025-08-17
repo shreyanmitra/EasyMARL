@@ -44,7 +44,7 @@ import wandb       # Weights & Biases for experiment tracking
 
 # Import our framework components
 import utils                                        # Utility functions
-from modern_multiagent_controller import ModernMultiAgentController  # Main training controller
+from src.controllers.modern_multiagent_controller import ModernMultiAgentController  # Main training controller
 from algorithms import list_available_algorithms   # Available MARL algorithms
 
 def parse_args():
@@ -140,7 +140,7 @@ Examples:
         '--list_algorithms', action=argparse.BooleanOptionalAction,
         help="List available algorithms and exit.")
 
-  return parser.parse_args()
+    return parser.parse_args()
 
 def get_controller_class(config):
     return ModernMultiAgentController

@@ -47,9 +47,13 @@ import argparse            # Command-line argument parsing
 import os                  # Operating system interface
 import time                # Time measurement
 
-# Import EasyMARL framework components
+# Import EasyMARL framework components - Updated for new directory structure
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 from algorithms import create_marl_algorithm, list_available_algorithms  # Algorithm factory
-from modern_multiagent_controller import ModernMultiAgentController      # Training controller
+from src.controllers.modern_multiagent_controller import ModernMultiAgentController      # Training controller
 import utils               # Utility functions
 
 
