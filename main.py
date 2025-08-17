@@ -1,52 +1,142 @@
-import argparse
-import random
-import torch
-import numpy as np
-import wandb
+"""
+(C) Shreyan Mitra, based on starter code by Natasha Jaques
 
-import utils
-from modern_multiagent_controller import ModernMultiAgentController
-from algorithms import list_available_algorithms
+EasyMARL - Multi-Agent Reinforcement Learning Framework
+Main Entry Point for Training and Evaluation
+
+This is the primary script for running MARL experiments. It provides a simple
+command-line interface for training and evaluating different MARL algorithms
+on various multi-agent environments.
+
+For MARL Beginners:
+This is your starting point! Run this script to train agents using different
+algorithms. Start with simple commands like:
+  python main.py --algorithm ippo --env_name MultiGrid-Cluttered-Fixed-15x15
+
+Key Features:
+- Support for 20+ MARL algorithms (IPPO, QMIX, MADDPG, MAPPO, etc.)
+- Multiple environments (MultiGrid, custom environments)
+- Experiment tracking with Weights & Biases
+- Automatic checkpointing and model saving
+- Evaluation and visualization modes
+- Reproducible experiments with seed setting
+
+Usage Examples:
+  # Train IPPO agents (good for beginners)
+  python main.py --algorithm ippo
+  
+  # Train QMIX agents with specific environment
+  python main.py --algorithm qmix --env_name MultiGrid-Cluttered-Fixed-15x15
+  
+  # Evaluate trained models with visualization
+  python main.py --evaluate --visualize --algorithm ippo
+  
+  # Continue training from checkpoint
+  python main.py --algorithm ippo --keep_training
+"""
+
+# Import essential libraries
+import argparse    # For parsing command-line arguments
+import random      # For random number generation
+import torch       # PyTorch for deep learning
+import numpy as np # Numerical computations
+import wandb       # Weights & Biases for experiment tracking
+
+# Import our framework components
+import utils                                        # Utility functions
+from modern_multiagent_controller import ModernMultiAgentController  # Main training controller
+from algorithms import list_available_algorithms   # Available MARL algorithms
 
 def parse_args():
-  parser = argparse.ArgumentParser(description='Multi-Agent Reinforcement Learning Framework')
-  parser.add_argument(
-      '--env_name', type=str, default='MultiGrid-Cluttered-Fixed-15x15',
-      help='Name of environment.')
-  parser.add_argument(
-      '--algorithm', type=str, default='ippo',
-      help="MARL algorithm to use. Options: ippo, maddpg, qmix, mappo")
-  parser.add_argument(
-      '--mode', type=str, default=None,
-      help="Deprecated: use --algorithm instead. For backward compatibility.")
-  parser.add_argument(
-      '--with_expert', type=str, default=None,
-      help="Whether to train with an expert")
-  parser.add_argument(
-      '--debug', action=argparse.BooleanOptionalAction,
-      help="If used will disable wandb logging.")
-  parser.add_argument(
-      '--seed', type=int, default=None,
-      help="Random seed.")
-  parser.add_argument(
-      '--keep_training', action=argparse.BooleanOptionalAction,
-      help="If used will continue training from previous checkpoint.")
-  parser.add_argument(
-      '--visualize', action=argparse.BooleanOptionalAction,
-      help="If used will run evaluation with visualization.")
-  parser.add_argument(
-      '--evaluate', action=argparse.BooleanOptionalAction,
-      help="If used will run evaluation only.")
-  parser.add_argument(
-      '--video_dir', type=str, default='videos',
-      help="Name of location to store videos.")
-  parser.add_argument(
-      '--load_checkpoint_from',  type=str, default=None,
-      help="Path to find model checkpoints to load")
-  parser.add_argument(
+    """
+    Parse command-line arguments for configuring MARL experiments.
+    
+    This function defines all the options you can specify when running the script,
+    such as which algorithm to use, which environment to train on, etc.
+    
+    Returns:
+        argparse.Namespace: Parsed arguments with all configuration options
+    
+    For Beginners:
+    These are all the "settings" you can adjust when running experiments.
+    Most have sensible defaults, so you can start with just specifying the algorithm.
+    """
+    parser = argparse.ArgumentParser(
+        description='EasyMARL - Multi-Agent Reinforcement Learning Framework',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Train IPPO agents (recommended for beginners)
+  python main.py --algorithm ippo
+  
+  # Train QMIX agents on specific environment
+  python main.py --algorithm qmix --env_name MultiGrid-Cluttered-Fixed-15x15
+  
+  # Evaluate trained models with visualization
+  python main.py --evaluate --visualize --algorithm ippo
+  
+  # List all available algorithms
+  python main.py --list_algorithms
+        """
+    )
+    
+    # Core Configuration Options
+    parser.add_argument(
+        '--env_name', type=str, default='MultiGrid-Cluttered-Fixed-15x15',
+        help='Environment to train on. Examples: MultiGrid-Cluttered-Fixed-15x15, MultiGrid-Empty-8x8')
+    
+    parser.add_argument(
+        '--algorithm', type=str, default='ippo',
+        help='MARL algorithm to use. Popular options: ippo (beginner-friendly), qmix, maddpg, mappo')
+    
+    # Legacy support for backward compatibility
+    parser.add_argument(
+        '--mode', type=str, default=None,
+        help='Deprecated: use --algorithm instead. Kept for backward compatibility.')
+    
+    # Advanced Training Options
+    parser.add_argument(
+        '--with_expert', type=str, default=None,
+        help='Train with an expert agent (advanced feature)')
+    
+    # Debugging and Development Options
+    parser.add_argument(
+        '--debug', action=argparse.BooleanOptionalAction,
+        help='Disable wandb logging for local debugging')
+    
+    parser.add_argument(
+        '--seed', type=int, default=None,
+        help='Random seed for reproducible experiments (recommended: 42, 123, 456)')
+    
+    # Training Control Options
+    parser.add_argument(
+        '--keep_training', action=argparse.BooleanOptionalAction,
+        help='Continue training from the most recent checkpoint')
+    
+    # Evaluation and Analysis Options
+    parser.add_argument(
+        '--visualize', action=argparse.BooleanOptionalAction,
+        help='Run with visualization (great for seeing what agents learned)')
+    
+    parser.add_argument(
+        '--evaluate', action=argparse.BooleanOptionalAction,
+        help='Run evaluation only (no training)')
+    
+    # Output and Storage Options
+    parser.add_argument(
+        '--video_dir', type=str, default='videos',
+        help='Directory to save evaluation videos')
+    
+    parser.add_argument(
+        '--load_checkpoint_from', type=str, default=None,
+        help='Specific checkpoint path to load models from')
+    
+    # Experiment Tracking Options
+    parser.add_argument(
         '--wandb_project', type=str, default='MARL_Training',
-        help="Name of wandb project.")
-  parser.add_argument(
+        help='Weights & Biases project name for experiment tracking')
+    
+    parser.add_argument(
         '--list_algorithms', action=argparse.BooleanOptionalAction,
         help="List available algorithms and exit.")
 

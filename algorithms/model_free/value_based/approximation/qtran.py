@@ -1,75 +1,148 @@
 """
-MAVEN (Multi-Agent Variational Exploration) algorithm.
+(C) Shreyan Mitra, based on starter code by Natasha Jaques
 
-MAVEN uses mutual information maximization to learn diverse behaviors
-and improve exploration in multi-agent environments.
+QTRAN (Q-Transformation) Algorithm
+
+QTRAN is an advanced multi-agent value-based algorithm that addresses limitations
+of QMIX by relaxing structural constraints while maintaining theoretical guarantees.
+It represents a significant step forward in value-based multi-agent learning.
+
+Key Innovation - Constraint-Based IGM:
+Instead of enforcing monotonicity through network structure (like QMIX), QTRAN
+uses additional loss terms and constraints to ensure optimal joint actions:
+- Removes monotonicity constraints on mixing networks
+- Uses regularization to maintain Individual-Global-Max principle
+- Allows more expressive value function representations
+
+How QTRAN Works:
+1. Individual Q-Networks: Each agent learns Q(obs, action) from local observations
+2. Joint Action-Value Function: Q_jt estimates team value for all possible joint actions
+3. Transformation Network: Maps individual Q-values to joint Q-value flexibly
+4. Constraint Regularization: Additional loss terms ensure IGM principle
+
+When to Use QTRAN:
+✅ Complex coordination requiring non-monotonic interactions
+✅ When QMIX's monotonicity constraints are too restrictive
+✅ Cooperative tasks with intricate agent dependencies
+✅ Need for more expressive value function approximation
+✅ Research settings requiring theoretical guarantees
+
+Key Advantages:
+✅ More expressive than QMIX (no monotonicity constraints)
+✅ Maintains theoretical guarantees through regularization
+✅ Can capture complex agent interactions
+✅ Better performance on challenging coordination tasks
+
+Limitations:
+❌ More complex to implement and tune than QMIX
+❌ Higher computational cost due to additional networks
+❌ Requires careful hyperparameter tuning for stability
+❌ Additional regularization terms can be sensitive
+
+Comparison with Other Algorithms:
+- vs QMIX: More expressive but more complex
+- vs VDN: Much more sophisticated but computationally heavier
+- vs MAPPO: Value-based vs policy gradient approach
+
+For MARL Beginners:
+QTRAN is advanced! Master VDN and QMIX first. QTRAN addresses limitations
+of QMIX when agents need to coordinate in complex ways that can't be
+represented by simple monotonic combinations of individual values.
+
+Paper: "QTRAN: Learning to Factorize with Transformation for Cooperative Multi-Agent RL" (2019)
+Use Cases: Complex StarCraft II scenarios, intricate coordination tasks
 """
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.distributions import Normal, Categorical
-from torch.optim import Adam
-import numpy as np
-from typing import Dict, List, Tuple, Any
-from collections import deque
-import random
+# Import necessary libraries for deep learning and multi-agent systems
+import torch                    # PyTorch for neural networks
+import torch.nn as nn           # Neural network modules
+import torch.nn.functional as F # Activation functions and utilities
+from torch.optim import Adam    # Adam optimizer for gradient-based learning
+import numpy as np              # Numerical computations
+from typing import Dict, List, Tuple, Any  # Type hints for code clarity
+from collections import deque   # For efficient queue operations
+import random                   # For random sampling
 
+# Import base classes from our MARL framework
 from .base import MARLAgent, MARLAlgorithm
 
 
-class MAVENAgent(MARLAgent):
+class QTRANAgent(MARLAgent):
     """
-    MAVEN agent with latent variable for exploration.
+    QTRAN Agent with Individual Q-Network.
+    
+    This agent represents one member of a QTRAN team. Each agent learns its own
+    Q-function but participates in a more sophisticated value factorization
+    scheme that allows for non-monotonic agent interactions.
+    
+    Key Components:
+    1. Individual Q-Network: Q(local_obs, action) → action values
+    2. Target Network: Stable targets for temporal difference learning
+    3. Epsilon-Greedy Exploration: Balance exploration and exploitation
+    4. Flexible Value Combination: Part of QTRAN's advanced mixing
+    
+    Architecture Insight:
+    - Q-Network: Standard deep Q-network for individual value estimation
+    - Target Network: Delayed copy for stable learning
+    - Value Factorization: Participates in QTRAN's constraint-based mixing
+    
+    For MARL Beginners:
+    Think of this as a more sophisticated version of a VDN agent. It still
+    learns individual Q-values, but these values are combined in more complex
+    ways that can represent richer agent interactions.
     """
     
     def __init__(self, agent_id: int, obs_space: Dict, action_space: int, config: Dict):
         """
-        Initialize the MAVEN agent.
+        Initialize the QTRAN agent with Q-networks and exploration parameters.
         
         Args:
-            agent_id: Unique identifier for this agent
-            obs_space: Individual observation space
-            action_space: Number of available actions
-            config: Configuration dictionary
+            agent_id (int): Unique identifier for this agent
+            obs_space (Dict): Local observation space for this agent
+                             Example: {'image': (7, 7, 3), 'direction': 4}
+            action_space (int): Number of actions this agent can take
+                               Example: 6 for MultiGrid environments
+            config (Dict): Configuration containing hyperparameters
+                          Example: {'gamma': 0.99, 'epsilon_start': 1.0, ...}
+        
+        For Beginners:
+        This sets up an agent similar to VDN or QMIX agents, but it will
+        participate in QTRAN's more sophisticated value combination scheme.
         """
+        # Call parent class constructor to set up basic agent properties
         super().__init__(agent_id, obs_space, action_space, config)
         
-        # MAVEN hyperparameters
+        # Q-Learning Core Hyperparameters
+        # Discount factor: how much the agent values future rewards
         self.gamma = config.get('gamma', 0.99)
-        self.epsilon_start = config.get('epsilon_start', 1.0)
-        self.epsilon_end = config.get('epsilon_end', 0.01)
-        self.epsilon_decay = config.get('epsilon_decay', 0.995)
-        self.epsilon = self.epsilon_start
         
-        # Latent space parameters
-        self.latent_dim = config.get('latent_dim', 8)
-        self.noise_scale = config.get('noise_scale', 0.3)
+        # Epsilon-Greedy Exploration Parameters
+        # These control the exploration-exploitation tradeoff
+        self.epsilon_start = config.get('epsilon_start', 1.0)    # Start with high exploration
+        self.epsilon_end = config.get('epsilon_end', 0.01)       # End with minimal exploration
+        self.epsilon_decay = config.get('epsilon_decay', 0.995)  # How fast to decay exploration
+        self.epsilon = self.epsilon_start                        # Current exploration rate
         
-        # Networks
-        self.q_network = MAVENQNetwork(obs_space, action_space, self.latent_dim, config).to(self.device)
-        self.target_q_network = MAVENQNetwork(obs_space, action_space, self.latent_dim, config).to(self.device)
+        # Individual Q-Network Architecture
+        # Main network: learns to estimate Q-values from local observations
+        self.q_network = QTRANQNetwork(obs_space, action_space, config).to(self.device)
         
-        # Copy weights to target network
+        # Target network: provides stable targets for temporal difference learning
+        # This prevents the instability that can occur in deep Q-learning
+        self.target_q_network = QTRANQNetwork(obs_space, action_space, config).to(self.device)
+        
+        # Initialize target network with same weights as main network
         self.target_q_network.load_state_dict(self.q_network.state_dict())
         
         # Optimizer
         self.optimizer = Adam(self.q_network.parameters(), lr=config.get('learning_rate', 1e-3))
         
-        # Current latent variable
-        self.current_latent = None
-        
-        print(f"Initialized MAVEN Agent {agent_id}")
-        print(f"Latent dimension: {self.latent_dim}")
+        print(f"Initialized QTRAN Agent {agent_id}")
         print(f"Q-network parameters: {sum(p.numel() for p in self.q_network.parameters())}")
-    
-    def set_latent(self, latent: torch.Tensor):
-        """Set the current latent variable."""
-        self.current_latent = latent.to(self.device)
     
     def get_action(self, observation: Dict, training: bool = True) -> Tuple[int, float]:
         """
-        Select an action given the current observation and latent variable.
+        Select an action using epsilon-greedy policy.
         
         Args:
             observation: Individual agent observation
@@ -78,13 +151,9 @@ class MAVENAgent(MARLAgent):
         Returns:
             Tuple of (action, q_value)
         """
-        if self.current_latent is None:
-            # Use default latent if none set
-            self.current_latent = torch.zeros(1, self.latent_dim).to(self.device)
-        
         with torch.no_grad():
             obs_tensor = self._process_observation(observation)
-            q_values = self.q_network(obs_tensor, self.current_latent)
+            q_values = self.q_network(obs_tensor)
             
             if training and random.random() < self.epsilon:
                 action = random.randint(0, self.action_space - 1)
@@ -95,15 +164,15 @@ class MAVENAgent(MARLAgent):
             
             return action, q_value
     
-    def get_q_values(self, observation: Dict, latent: torch.Tensor) -> torch.Tensor:
-        """Get Q-values for all actions given observation and latent."""
+    def get_q_values(self, observation: Dict) -> torch.Tensor:
+        """Get Q-values for all actions given observation."""
         obs_tensor = self._process_observation(observation)
-        return self.q_network(obs_tensor, latent)
+        return self.q_network(obs_tensor)
     
-    def get_target_q_values(self, observation: Dict, latent: torch.Tensor) -> torch.Tensor:
-        """Get target Q-values for all actions given observation and latent."""
+    def get_target_q_values(self, observation: Dict) -> torch.Tensor:
+        """Get target Q-values for all actions given observation."""
         obs_tensor = self._process_observation(observation)
-        return self.target_q_network(obs_tensor, latent)
+        return self.target_q_network(obs_tensor)
     
     def _process_observation(self, observation: Dict) -> torch.Tensor:
         """Convert observation to tensor format."""
@@ -138,48 +207,34 @@ class MAVENAgent(MARLAgent):
             'agent_id': self.agent_id,
             'config': self.config
         }
-        torch.save(checkpoint, f"{path}_maven_agent_{self.agent_id}.pth")
-        print(f"Saved MAVEN Agent {self.agent_id} model to {path}_maven_agent_{self.agent_id}.pth")
+        torch.save(checkpoint, f"{path}_qtran_agent_{self.agent_id}.pth")
+        print(f"Saved QTRAN Agent {self.agent_id} model to {path}_qtran_agent_{self.agent_id}.pth")
     
     def load_model(self, path: str):
         """Load the agent's model."""
-        checkpoint = torch.load(f"{path}_maven_agent_{self.agent_id}.pth", map_location=self.device)
+        checkpoint = torch.load(f"{path}_qtran_agent_{self.agent_id}.pth", map_location=self.device)
         self.q_network.load_state_dict(checkpoint['q_network_state_dict'])
         self.target_q_network.load_state_dict(checkpoint['target_q_network_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         self.epsilon = checkpoint['epsilon']
-        print(f"Loaded MAVEN Agent {self.agent_id} model from {path}_maven_agent_{self.agent_id}.pth")
+        print(f"Loaded QTRAN Agent {self.agent_id} model from {path}_qtran_agent_{self.agent_id}.pth")
 
 
-class MAVENQNetwork(nn.Module):
-    """Q-network that takes observation and latent variable as input."""
+class QTRANQNetwork(nn.Module):
+    """Individual Q-network for QTRAN agent."""
     
-    def __init__(self, obs_space: Dict, action_space: int, latent_dim: int, config: Dict):
+    def __init__(self, obs_space: Dict, action_space: int, config: Dict):
         super().__init__()
         
         # Estimate observation dimension
         self.obs_dim = self._estimate_obs_dim(obs_space)
-        self.latent_dim = latent_dim
         
         hidden_dim = config.get('hidden_dim', 128)
         
-        # Observation encoder
-        self.obs_encoder = nn.Sequential(
+        self.network = nn.Sequential(
             nn.Linear(self.obs_dim, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU()
-        )
-        
-        # Latent encoder
-        self.latent_encoder = nn.Sequential(
-            nn.Linear(latent_dim, hidden_dim),
-            nn.ReLU()
-        )
-        
-        # Combined Q-value head
-        self.q_head = nn.Sequential(
-            nn.Linear(hidden_dim + hidden_dim, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, action_space)
         )
@@ -205,41 +260,21 @@ class MAVENQNetwork(nn.Module):
                 nn.init.orthogonal_(module.weight, gain=1.0)
                 nn.init.constant_(module.bias, 0.0)
     
-    def forward(self, obs: torch.Tensor, latent: torch.Tensor) -> torch.Tensor:
-        """
-        Forward pass through Q-network.
-        
-        Args:
-            obs: [batch_size, obs_dim] observations
-            latent: [batch_size, latent_dim] latent variables
-            
-        Returns:
-            Q-values: [batch_size, action_space]
-        """
-        # Encode observation and latent
-        obs_features = self.obs_encoder(obs)
-        latent_features = self.latent_encoder(latent)
-        
-        # Combine features
-        combined = torch.cat([obs_features, latent_features], dim=-1)
-        
-        # Get Q-values
-        q_values = self.q_head(combined)
-        
-        return q_values
+    def forward(self, obs: torch.Tensor) -> torch.Tensor:
+        """Forward pass through Q-network."""
+        return self.network(obs)
 
 
-class MAVENMixingNetwork(nn.Module):
-    """Mixing network that combines individual Q-values with latent variable."""
+class QTRANMixingNetwork(nn.Module):
+    """QTRAN mixing network that transforms individual Q-values to joint Q-value."""
     
-    def __init__(self, n_agents: int, state_dim: int, latent_dim: int, config: Dict):
+    def __init__(self, n_agents: int, state_dim: int, config: Dict):
         super().__init__()
         
         self.n_agents = n_agents
-        self.latent_dim = latent_dim
         hidden_dim = config.get('hidden_dim', 128)
         
-        # State encoder
+        # State embedding
         self.state_encoder = nn.Sequential(
             nn.Linear(state_dim, hidden_dim),
             nn.ReLU(),
@@ -247,15 +282,9 @@ class MAVENMixingNetwork(nn.Module):
             nn.ReLU()
         )
         
-        # Latent encoder
-        self.latent_encoder = nn.Sequential(
-            nn.Linear(latent_dim, hidden_dim),
-            nn.ReLU()
-        )
-        
-        # Mixing network
-        self.mixer = nn.Sequential(
-            nn.Linear(n_agents + hidden_dim + hidden_dim, hidden_dim),
+        # Individual Q-value transformation
+        self.q_transform = nn.Sequential(
+            nn.Linear(n_agents + hidden_dim, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
@@ -271,52 +300,51 @@ class MAVENMixingNetwork(nn.Module):
                 nn.init.orthogonal_(module.weight, gain=1.0)
                 nn.init.constant_(module.bias, 0.0)
     
-    def forward(self, individual_q_values: torch.Tensor, state: torch.Tensor, 
-               latent: torch.Tensor) -> torch.Tensor:
+    def forward(self, individual_q_values: torch.Tensor, state: torch.Tensor) -> torch.Tensor:
         """
-        Mix individual Q-values with state and latent information.
+        Transform individual Q-values to joint Q-value.
         
         Args:
             individual_q_values: [batch_size, n_agents] individual Q-values
             state: [batch_size, state_dim] global state
-            latent: [batch_size, latent_dim] latent variable
             
         Returns:
             joint_q_value: [batch_size, 1] joint Q-value
         """
-        # Encode state and latent
-        state_features = self.state_encoder(state)
-        latent_features = self.latent_encoder(latent)
+        batch_size = individual_q_values.shape[0]
         
-        # Combine all features
-        combined = torch.cat([individual_q_values, state_features, latent_features], dim=-1)
+        # Encode state
+        state_features = self.state_encoder(state)  # [batch_size, hidden_dim]
         
-        # Mix to get joint Q-value
-        joint_q = self.mixer(combined)
+        # Combine individual Q-values with state features
+        combined = torch.cat([individual_q_values, state_features], dim=-1)  # [batch_size, n_agents + hidden_dim]
+        
+        # Transform to joint Q-value
+        joint_q = self.q_transform(combined)  # [batch_size, 1]
         
         return joint_q
 
 
-class MAVENVariationalNetwork(nn.Module):
-    """Variational network for latent variable inference."""
+class QTRANCounterfactualNetwork(nn.Module):
+    """Counterfactual value network for QTRAN regularization."""
     
-    def __init__(self, state_dim: int, latent_dim: int, config: Dict):
+    def __init__(self, n_agents: int, action_space: int, state_dim: int, config: Dict):
         super().__init__()
         
-        self.latent_dim = latent_dim
+        self.n_agents = n_agents
+        self.action_space = action_space
         hidden_dim = config.get('hidden_dim', 128)
         
-        # Encoder
-        self.encoder = nn.Sequential(
-            nn.Linear(state_dim, hidden_dim),
+        # State + action embedding
+        self.input_dim = state_dim + n_agents * action_space
+        
+        self.network = nn.Sequential(
+            nn.Linear(self.input_dim, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU()
+            nn.ReLU(),
+            nn.Linear(hidden_dim, 1)
         )
-        
-        # Mean and variance heads
-        self.mean_head = nn.Linear(hidden_dim, latent_dim)
-        self.logvar_head = nn.Linear(hidden_dim, latent_dim)
         
         self._init_weights()
     
@@ -327,32 +355,30 @@ class MAVENVariationalNetwork(nn.Module):
                 nn.init.orthogonal_(module.weight, gain=1.0)
                 nn.init.constant_(module.bias, 0.0)
     
-    def forward(self, state: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, state: torch.Tensor, actions: torch.Tensor) -> torch.Tensor:
         """
-        Encode state to latent distribution parameters.
+        Compute counterfactual value.
         
         Args:
             state: [batch_size, state_dim] global state
+            actions: [batch_size, n_agents, action_space] one-hot actions
             
         Returns:
-            Tuple of (mean, logvar) for latent distribution
+            counterfactual_value: [batch_size, 1]
         """
-        features = self.encoder(state)
+        batch_size = state.shape[0]
         
-        mean = self.mean_head(features)
-        logvar = self.logvar_head(features)
+        # Flatten actions
+        actions_flat = actions.view(batch_size, -1)  # [batch_size, n_agents * action_space]
         
-        return mean, logvar
-    
-    def sample(self, mean: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
-        """Sample from the latent distribution using reparameterization trick."""
-        std = torch.exp(0.5 * logvar)
-        eps = torch.randn_like(std)
-        return mean + eps * std
+        # Combine state and actions
+        combined = torch.cat([state, actions_flat], dim=-1)  # [batch_size, state_dim + n_agents * action_space]
+        
+        return self.network(combined)
 
 
-class MAVENEpisodeReplayBuffer:
-    """Episode-based replay buffer for MAVEN."""
+class QTRANEpisodeReplayBuffer:
+    """Episode-based replay buffer for QTRAN."""
     
     def __init__(self, capacity: int):
         self.capacity = capacity
@@ -370,17 +396,17 @@ class MAVENEpisodeReplayBuffer:
         return len(self.buffer)
 
 
-class MAVEN(MARLAlgorithm):
+class QTRAN(MARLAlgorithm):
     """
-    MAVEN (Multi-Agent Variational Exploration) algorithm.
+    QTRAN (Q-Transformation) algorithm.
     
-    Uses mutual information maximization to learn diverse behaviors
-    and improve exploration in multi-agent environments.
+    Relaxes QMIX's monotonicity constraint through regularization terms
+    that ensure the IGM principle through constraints rather than structure.
     """
     
     def __init__(self, env, config: Dict, device: torch.device):
         """
-        Initialize MAVEN algorithm.
+        Initialize QTRAN algorithm.
         
         Args:
             env: Multi-agent environment
@@ -389,30 +415,28 @@ class MAVEN(MARLAlgorithm):
         """
         super().__init__(env, config, device)
         
-        # MAVEN specific parameters
+        # QTRAN specific parameters
         self.batch_size = config.get('batch_size', 32)
         self.target_update_freq = config.get('target_update_freq', 100)
-        self.latent_dim = config.get('latent_dim', 8)
-        self.mi_loss_weight = config.get('mi_loss_weight', 0.001)
-        self.kl_loss_weight = config.get('kl_loss_weight', 0.0001)
+        self.regularization_weight = config.get('regularization_weight', 0.1)
         
         # Get state dimension
         self.state_dim = self._get_state_dim()
         
-        # Create networks
-        self.mixing_network = MAVENMixingNetwork(
-            self.n_agents, self.state_dim, self.latent_dim, config
+        # Create mixing and counterfactual networks
+        self.mixing_network = QTRANMixingNetwork(
+            self.n_agents, self.state_dim, config
         ).to(device)
         
-        self.target_mixing_network = MAVENMixingNetwork(
-            self.n_agents, self.state_dim, self.latent_dim, config
+        self.target_mixing_network = QTRANMixingNetwork(
+            self.n_agents, self.state_dim, config
         ).to(device)
         
-        self.variational_network = MAVENVariationalNetwork(
-            self.state_dim, self.latent_dim, config
+        self.counterfactual_network = QTRANCounterfactualNetwork(
+            self.n_agents, len(self.env.actions), self.state_dim, config
         ).to(device)
         
-        # Copy weights to target network
+        # Copy weights to target networks
         self.target_mixing_network.load_state_dict(self.mixing_network.state_dict())
         
         # Optimizers
@@ -421,27 +445,26 @@ class MAVEN(MARLAlgorithm):
             lr=config.get('learning_rate', 1e-3)
         )
         
-        self.variational_optimizer = Adam(
-            self.variational_network.parameters(),
+        self.counterfactual_optimizer = Adam(
+            self.counterfactual_network.parameters(),
             lr=config.get('learning_rate', 1e-3)
         )
         
         # Replay buffer
-        self.replay_buffer = MAVENEpisodeReplayBuffer(config.get('memory_size', 10000))
+        self.replay_buffer = QTRANEpisodeReplayBuffer(config.get('memory_size', 10000))
         
-        print(f"Initialized MAVEN")
-        print(f"Latent dimension: {self.latent_dim}")
+        print(f"Initialized QTRAN")
         print(f"State dimension: {self.state_dim}")
         print(f"Mixing network parameters: {sum(p.numel() for p in self.mixing_network.parameters())}")
-        print(f"Variational network parameters: {sum(p.numel() for p in self.variational_network.parameters())}")
+        print(f"Counterfactual network parameters: {sum(p.numel() for p in self.counterfactual_network.parameters())}")
     
     def _create_agents(self):
-        """Create MAVEN agents."""
+        """Create QTRAN agents."""
         obs_space = self._get_obs_space()
         action_space = len(self.env.actions)
         
         for i in range(self.n_agents):
-            agent = MAVENAgent(i, obs_space, action_space, self.config)
+            agent = QTRANAgent(i, obs_space, action_space, self.config)
             self.agents.append(agent)
     
     def _get_obs_space(self) -> Dict:
@@ -506,29 +529,17 @@ class MAVEN(MARLAlgorithm):
         
         return agent_obs
     
-    def _sample_latent(self, batch_size: int = 1) -> torch.Tensor:
-        """Sample random latent variable."""
-        return torch.randn(batch_size, self.latent_dim).to(self.device)
-    
     def collect_episode(self, env) -> Dict:
-        """Collect a complete episode with latent variable."""
+        """Collect a complete episode for training."""
         obs = env.reset()
         done = False
-        
-        # Sample latent variable for this episode
-        episode_latent = self._sample_latent(1)
-        
-        # Set latent for all agents
-        for agent in self.agents:
-            agent.set_latent(episode_latent)
         
         episode_data = {
             'observations': [[] for _ in range(self.n_agents)],
             'actions': [[] for _ in range(self.n_agents)],
             'rewards': [[] for _ in range(self.n_agents)],
             'states': [],
-            'dones': [],
-            'latent': episode_latent
+            'dones': []
         }
         
         while not done:
@@ -570,7 +581,7 @@ class MAVEN(MARLAlgorithm):
         return episode_data
     
     def train_step(self, episode_data: Dict) -> Dict[str, float]:
-        """Perform MAVEN training step."""
+        """Perform QTRAN training step."""
         # Add episode to replay buffer
         self.replay_buffer.add_episode(episode_data)
         
@@ -598,44 +609,49 @@ class MAVEN(MARLAlgorithm):
         return losses
     
     def _update_networks(self, batch_episodes: List[Dict]) -> Dict[str, float]:
-        """Update MAVEN networks."""
+        """Update QTRAN networks."""
         total_q_loss = 0.0
-        total_mi_loss = 0.0
-        total_kl_loss = 0.0
+        total_regularization_loss = 0.0
         
         for episode in batch_episodes:
             episode_length = len(episode['states'])
-            episode_latent = episode['latent']
             
             for t in range(episode_length - 1):
-                # Current state
+                # Current state and actions
                 current_state = torch.tensor(episode['states'][t], dtype=torch.float32).unsqueeze(0).to(self.device)
                 next_state = torch.tensor(episode['states'][t + 1], dtype=torch.float32).unsqueeze(0).to(self.device)
                 
-                # Get individual Q-values with latent
+                # Get individual Q-values
                 current_q_values = []
                 next_q_values = []
+                actions = []
                 
                 for i, agent in enumerate(self.agents):
                     # Current Q-values
                     agent_obs = episode['observations'][i][t]
-                    current_q = agent.get_q_values(agent_obs, episode_latent)
+                    current_q = agent.get_q_values(agent_obs)
                     current_q_values.append(current_q[0, episode['actions'][i][t]])
                     
                     # Next Q-values (target)
                     if t + 1 < len(episode['observations'][i]):
                         next_agent_obs = episode['observations'][i][t + 1]
-                        next_q = agent.get_target_q_values(next_agent_obs, episode_latent)
+                        next_q = agent.get_target_q_values(next_agent_obs)
                         next_q_values.append(torch.max(next_q))
                     else:
                         next_q_values.append(torch.tensor(0.0).to(self.device))
+                    
+                    # Actions (one-hot)
+                    action_onehot = torch.zeros(len(self.env.actions)).to(self.device)
+                    action_onehot[episode['actions'][i][t]] = 1.0
+                    actions.append(action_onehot)
                 
                 current_q_values = torch.stack(current_q_values).unsqueeze(0)  # [1, n_agents]
                 next_q_values = torch.stack(next_q_values).unsqueeze(0)  # [1, n_agents]
+                actions_tensor = torch.stack(actions).unsqueeze(0)  # [1, n_agents, action_space]
                 
                 # Compute joint Q-values
-                current_joint_q = self.mixing_network(current_q_values, current_state, episode_latent)
-                next_joint_q = self.target_mixing_network(next_q_values, next_state, episode_latent)
+                current_joint_q = self.mixing_network(current_q_values, current_state)
+                next_joint_q = self.target_mixing_network(next_q_values, next_state)
                 
                 # Compute target
                 rewards = torch.tensor([episode['rewards'][i][t] for i in range(self.n_agents)]).mean().unsqueeze(0).to(self.device)
@@ -645,21 +661,15 @@ class MAVEN(MARLAlgorithm):
                 # Q-learning loss
                 q_loss = F.mse_loss(current_joint_q, target.detach())
                 
-                # Mutual information loss
-                # Infer latent from state
-                inferred_mean, inferred_logvar = self.variational_network(current_state)
+                # QTRAN regularization
+                counterfactual_value = self.counterfactual_network(current_state, actions_tensor)
                 
-                # MI loss (maximize mutual information between latent and state)
-                inferred_std = torch.exp(0.5 * inferred_logvar)
-                inferred_dist = Normal(inferred_mean, inferred_std)
-                log_prob = inferred_dist.log_prob(episode_latent).sum(dim=-1, keepdim=True)
-                mi_loss = -log_prob.mean()
-                
-                # KL regularization (prevent latent collapse)
-                kl_loss = -0.5 * torch.sum(1 + inferred_logvar - inferred_mean.pow(2) - inferred_logvar.exp())
+                # IGM constraint regularization
+                individual_sum = current_q_values.sum(dim=-1, keepdim=True)
+                regularization_loss = F.mse_loss(counterfactual_value, individual_sum)
                 
                 # Total loss
-                total_loss = q_loss + self.mi_loss_weight * mi_loss + self.kl_loss_weight * kl_loss
+                total_loss = q_loss + self.regularization_weight * regularization_loss
                 
                 # Update mixing network
                 self.mixing_optimizer.zero_grad()
@@ -667,17 +677,16 @@ class MAVEN(MARLAlgorithm):
                 torch.nn.utils.clip_grad_norm_(self.mixing_network.parameters(), 1.0)
                 self.mixing_optimizer.step()
                 
-                # Update variational network
-                var_loss = self.mi_loss_weight * mi_loss + self.kl_loss_weight * kl_loss
-                self.variational_optimizer.zero_grad()
-                var_loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.variational_network.parameters(), 1.0)
-                self.variational_optimizer.step()
+                # Update counterfactual network
+                self.counterfactual_optimizer.zero_grad()
+                regularization_loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.counterfactual_network.parameters(), 1.0)
+                self.counterfactual_optimizer.step()
                 
                 # Update individual Q-networks
                 for i, agent in enumerate(self.agents):
                     agent_obs = episode['observations'][i][t]
-                    agent_q_values = agent.get_q_values(agent_obs, episode_latent)
+                    agent_q_values = agent.get_q_values(agent_obs)
                     agent_action = episode['actions'][i][t]
                     agent_q_value = agent_q_values[0, agent_action]
                     
@@ -691,13 +700,11 @@ class MAVEN(MARLAlgorithm):
                     agent.optimizer.step()
                 
                 total_q_loss += q_loss.item()
-                total_mi_loss += mi_loss.item()
-                total_kl_loss += kl_loss.item()
+                total_regularization_loss += regularization_loss.item()
         
         return {
             'q_loss': total_q_loss / len(batch_episodes),
-            'mi_loss': total_mi_loss / len(batch_episodes),
-            'kl_loss': total_kl_loss / len(batch_episodes)
+            'regularization_loss': total_regularization_loss / len(batch_episodes)
         }
     
     def _update_target_networks(self):

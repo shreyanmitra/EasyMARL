@@ -1,52 +1,208 @@
-import gym
-from matplotlib.gridspec import GridSpec
-from matplotlib import pyplot as plt
-from moviepy.editor import *
-import numpy as np
-import os
-import random
-import seaborn as sns
-import torch
-import wandb
-import yaml
+"""
+(C) Shreyan Mitra, based on starter code by Natasha Jaques
+
+EasyMARL Utility Functions and Helper Classes
+
+This module provides essential utility functions used throughout the EasyMARL framework.
+These utilities handle common tasks like configuration management, environment creation,
+data processing, and visualization.
+
+Key Components:
+1. Configuration Management: Loading and merging YAML configs
+2. Environment Creation: Factory functions for different environment types
+3. Data Processing: Tensor operations and state preprocessing
+4. Visualization: Plotting and video generation utilities
+5. Reproducibility: Seed setting and deterministic operations
+
+For MARL Beginners:
+These are the "helper tools" that make the framework easier to use. You don't need
+to understand every detail initially, but they handle important background tasks
+like setting up environments and processing data.
+"""
+
+# Import essential libraries for the framework
+import gym                     # OpenAI Gym for reinforcement learning environments
+from matplotlib.gridspec import GridSpec  # For creating subplot layouts
+from matplotlib import pyplot as plt      # For plotting and visualization
+from moviepy.editor import *              # For video creation and editing
+import numpy as np            # Numerical computations
+import os                     # Operating system interface
+import random                 # Random number generation
+import seaborn as sns         # Statistical data visualization
+import torch                  # PyTorch for deep learning
+import wandb                  # Weights & Biases for experiment tracking
+import yaml                   # YAML configuration file parsing
+
 
 class dotdict(dict):
-    """dot.notation access to dictionary attributes"""
-    __getattr__ = dict.get
-    __setattr__ = dict.__setitem__
-    __delattr__ = dict.__delitem__
+    """
+    Dictionary with dot notation access to attributes.
+    
+    This utility class allows accessing dictionary keys using dot notation,
+    making configuration objects more convenient to use.
+    
+    Example:
+        config = dotdict({'learning_rate': 0.001, 'gamma': 0.99})
+        print(config.learning_rate)  # Instead of config['learning_rate']
+    
+    For Beginners:
+    This makes configuration objects easier to work with. Instead of writing
+    config['learning_rate'], you can write config.learning_rate.
+    """
+    __getattr__ = dict.get    # Allow config.key syntax for getting values
+    __setattr__ = dict.__setitem__  # Allow config.key = value syntax for setting
+    __delattr__ = dict.__delitem__  # Allow del config.key syntax for deletion
+
 
 def merge_configs(update, default):
-    if isinstance(update,dict) and isinstance(default,dict):
-        for k,v in default.items():
+    """
+    Recursively merge two configuration dictionaries.
+    
+    This function combines a default configuration with updates, ensuring that
+    all default values are preserved unless explicitly overridden. It handles
+    nested dictionaries properly by recursively merging them.
+    
+    Args:
+        update (dict): Configuration updates/overrides
+        default (dict): Default configuration values
+    
+    Returns:
+        dict: Merged configuration with updates applied to defaults
+    
+    Example:
+        default = {'algo': {'lr': 0.001, 'gamma': 0.99}, 'env': 'MultiGrid'}
+        update = {'algo': {'lr': 0.01}}
+        result = merge_configs(update, default)
+        # Result: {'algo': {'lr': 0.01, 'gamma': 0.99}, 'env': 'MultiGrid'}
+    
+    For Beginners:
+    This ensures you get sensible defaults for all settings while still being
+    able to customize specific parameters. Like having a template with some
+    custom modifications.
+    """
+    if isinstance(update, dict) and isinstance(default, dict):
+        # Both are dictionaries, so merge them recursively
+        for k, v in default.items():
             if k not in update:
+                # Key not in update, use default value
                 update[k] = v
             else:
-                update[k] = merge_configs(update[k],v)
+                # Key exists in both, merge recursively
+                update[k] = merge_configs(update[k], v)
     return update
 
+
 def make_env(config):
+    """
+    Factory function to create environments based on configuration.
+    
+    This function creates and returns the appropriate environment based on the
+    domain specified in the configuration. It handles different environment
+    types and their specific initialization requirements.
+    
+    Args:
+        config: Configuration object containing environment specification
+                Must have 'domain' attribute specifying environment name
+    
+    Returns:
+        gym.Env: Initialized environment ready for training
+    
+    Raises:
+        NotImplementedError: If environment type is not supported
+    
+    Example:
+        config = dotdict({'domain': 'MultiGrid-Cluttered-Fixed-15x15'})
+        env = make_env(config)
+    
+    For Beginners:
+    This is like a "environment factory" that creates the right type of
+    environment for your experiment. Just specify the environment name
+    in your config and this function handles the setup.
+    """
     if 'MultiGrid' in config.domain:
+        # MultiGrid environments (grid-based multi-agent environments)
         from envs import gym_multigrid
         from envs.gym_multigrid import multigrid_envs
+        
+        # Create environment using OpenAI Gym interface
         env = gym.make(config.domain)
+        print(f"Created MultiGrid environment: {config.domain}")
+        return env
     else:
-        raise NotImplementedError
-    return env
+        # Environment type not yet supported
+        raise NotImplementedError(f"Environment {config.domain} not implemented yet")
+
 
 def argmax_2d_index(arr):
-    assert len(arr.shape) == 2
-    best_2d_index = (arr==torch.max(arr)).nonzero()
-    if best_2d_index.shape[0] > 1:  # Handle case with multiple equal maxs
-        # Randomly select from multiple equal maxes
-        best_2d_index = best_2d_index[random.randrange(best_2d_index.shape[0]),:]
+    """
+    Find the 2D index of the maximum value in a 2D tensor.
+    
+    This function finds the (row, column) coordinates of the maximum value
+    in a 2D tensor. If there are multiple maximum values, it randomly
+    selects one to break ties.
+    
+    Args:
+        arr (torch.Tensor): 2D tensor to find maximum in
+    
+    Returns:
+        torch.Tensor: 1D tensor containing [row, column] of maximum value
+    
+    Example:
+        arr = torch.tensor([[1, 3], [2, 4]])
+        idx = argmax_2d_index(arr)  # Returns [1, 1] (position of value 4)
+    
+    For Beginners:
+    This is useful for finding the best action in 2D action spaces or
+    locating the most important position in a grid-like representation.
+    """
+    assert len(arr.shape) == 2, "Input must be a 2D tensor"
+    
+    # Find all positions where the value equals the maximum
+    best_2d_index = (arr == torch.max(arr)).nonzero()
+    
+    if best_2d_index.shape[0] > 1:
+        # Multiple maximum values - randomly select one to break ties
+        random_idx = random.randrange(best_2d_index.shape[0])
+        best_2d_index = best_2d_index[random_idx, :]
+    
     return best_2d_index.squeeze()
 
+
 def process_state(state, observation_shape):
+    """
+    Preprocess state observations for neural network input.
+    
+    This function converts environment states into the tensor format expected
+    by neural networks. For image observations, it handles dimension reordering
+    to match PyTorch's expected format (channels-first).
+    
+    Args:
+        state: Raw state observation from environment
+        observation_shape (tuple): Expected shape of observations
+    
+    Returns:
+        torch.Tensor: Processed state ready for neural network input
+    
+    Example:
+        # For image observation (height, width, channels) -> (batch, channels, height, width)
+        state = np.array([[[1, 2, 3], [4, 5, 6]], [[7, 8, 9], [10, 11, 12]]])  # (2, 2, 3)
+        processed = process_state(state, (2, 2, 3))  # (1, 3, 2, 2)
+    
+    For Beginners:
+    Neural networks are picky about input format. This function converts
+    whatever format the environment gives us into what the neural network expects.
+    """
     if len(observation_shape) == 3:
+        # 3D observation (likely an image: height x width x channels)
         state = torch.tensor(state)
+        
+        # Reorder dimensions from (H, W, C) to (C, H, W) for PyTorch
+        # PyTorch expects channels-first format for convolutional networks
         state = state.transpose(0, 2).transpose(1, 2)
-        state = state.float().unsqueeze(0)  # swapped RGB dimension to come first
+        
+        # Convert to float and add batch dimension
+        state = state.float().unsqueeze(0)  # Add batch dimension at front
+    
     return state
 
 def generate_parameters(mode, domain, debug=False, seed=None, with_expert=None, wandb_project=None):

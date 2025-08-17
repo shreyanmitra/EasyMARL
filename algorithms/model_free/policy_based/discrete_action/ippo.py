@@ -1,129 +1,275 @@
 """
-Independent Proximal Policy Optimization (IPPO) algorithm for multi-agent environments.
+(C) Shreyan Mitra, based on starter code by Natasha Jaques
 
-This implementation provides a robust and efficient IPPO algorithm with proper
-batching, GAE computation, and modular design for multi-agent scenarios.
+Independent Proximal Policy Optimization (IPPO) for Multi-Agent Reinforcement Learning
+
+IPPO is one of the simplest and most effective MARL algorithms. It treats multi-agent
+learning as multiple independent single-agent RL problems, where each agent learns
+its own policy without explicitly coordinating with others.
+
+Key Advantages of IPPO:
+✅ Simple to understand and implement
+✅ Stable training due to PPO's clipping mechanism
+✅ No communication required between agents
+✅ Scales well to many agents
+✅ Works in both cooperative and competitive scenarios
+
+How IPPO Works:
+1. Each agent has its own actor network (policy) and critic network (value function)
+2. Agents collect experiences independently from their local observations
+3. Each agent updates its policy using standard PPO updates
+4. No explicit coordination - agents adapt to each other through environment interaction
+
+When to Use IPPO:
+✅ First time learning MARL (excellent starting point)
+✅ Large number of agents (scales better than centralized methods)
+✅ Limited computational resources
+✅ When agent coordination is not critical
+✅ As a strong baseline to compare other algorithms against
+
+Comparison with Other Algorithms:
+- vs QMIX: Simpler but less coordinated
+- vs MADDPG: More stable but less sample efficient
+- vs MAPPO: Independent vs centralized training
+
+For MARL Beginners:
+Start with IPPO! It's the "Hello World" of multi-agent RL. Once you understand
+IPPO, you can move to more sophisticated algorithms like QMIX or MADDPG.
+
+Paper: "Multi-Agent Actor-Critic for Mixed Cooperative-Competitive Environments" (adapted for PPO)
+Use Cases: Swarm robotics, traffic control, distributed optimization, competitive games
 """
 
+# Try to import PyTorch and related libraries
 try:
-    import torch
-    import torch.nn as nn
-    import torch.nn.functional as F
-    from torch.distributions import Categorical
-    from torch.optim import Adam
+    import torch                          # Main PyTorch library for neural networks
+    import torch.nn as nn                 # Neural network modules
+    import torch.nn.functional as F       # Activation functions and utilities
+    from torch.distributions import Categorical  # For sampling from probability distributions
+    from torch.optim import Adam          # Adam optimizer for gradient-based learning
     TORCH_AVAILABLE = True
 except ImportError:
+    # Provide helpful message if PyTorch is not installed
+    print("Warning: PyTorch not available. Install with: pip install torch")
     TORCH_AVAILABLE = False
-    # Mock classes for structure testing
-    class torch:
-        class nn:
-            class Module: pass
-        class optim:
-            class Adam: pass
 
-import numpy as np
-from typing import Dict, List, Tuple, Any
+# Import numerical computing and utility libraries
+import numpy as np                        # Numerical computations and arrays
+from typing import Dict, List, Tuple, Any  # Type hints for better code clarity
 
+# Try to import Weights & Biases for experiment tracking (optional)
 try:
     import wandb
 except ImportError:
-    wandb = None
+    wandb = None  # Will skip logging if not available
 
-from .base import MARLAgent, MARLAlgorithm, compute_gae, compute_returns
+# Import base classes and utilities from our MARL framework
+from .base import MARLAgent, MARLAlgorithm, compute_gae, normalize_advantages
 
+# Import neural network architectures (only if PyTorch is available)
 if TORCH_AVAILABLE:
     from networks.multigrid_network import MultiGridNetwork
 
 
 class IPPOAgent(MARLAgent):
     """
-    Independent PPO agent implementation with proper GAE and modern features.
+    Independent Proximal Policy Optimization Agent.
+    
+    This agent implements the PPO algorithm independently for multi-agent environments.
+    Each agent learns its own policy and value function without explicit coordination
+    with other agents, but adapts to them through environment interactions.
+    
+    Key Components:
+    1. Actor Network: Learns the policy π(action|observation)
+    2. Critic Network: Learns the value function V(observation)
+    3. PPO Clipping: Prevents large policy updates for stable training
+    4. GAE: Generalized Advantage Estimation for better gradient estimates
+    
+    For MARL Beginners:
+    Think of this as a single-agent PPO that happens to be in a multi-agent world.
+    Each agent learns independently, like students studying for different subjects
+    without directly helping each other, but still influenced by the classroom environment.
     """
     
     def __init__(self, agent_id: int, obs_space: Dict, action_space: int, config: Dict):
         """
-        Initialize the IPPO agent.
+        Initialize the IPPO agent with actor and critic networks.
+        
+        This sets up everything the agent needs to learn: its policy network (actor),
+        value estimation network (critic), and learning hyperparameters.
         
         Args:
-            agent_id: Unique identifier for this agent
-            obs_space: Observation space specification  
-            action_space: Number of available actions
-            config: Configuration dictionary containing hyperparameters
+            agent_id (int): Unique identifier for this agent
+            obs_space (Dict): What this agent can observe from the environment
+                             Example: {'image': (7, 7, 3), 'direction': 4}
+            action_space (int): Number of actions this agent can take
+                               Example: 6 for MultiGrid environments
+            config (Dict): Learning configuration and hyperparameters
+                          Example: {'learning_rate': 3e-4, 'gamma': 0.99, ...}
+        
+        For Beginners:
+        This is like enrolling a student and giving them textbooks (networks),
+        study guidelines (hyperparameters), and learning materials.
         """
+        # Call parent class constructor to set up basic agent properties
         super().__init__(agent_id, obs_space, action_space, config)
         
-        # PPO hyperparameters
+        # PPO Core Hyperparameters (these control how the agent learns)
+        # Discount factor: how much the agent values future rewards vs immediate rewards
+        # gamma = 0.99 means future rewards are worth 99% of immediate rewards
         self.gamma = config.get('gamma', 0.99)
-        self.lambda_gae = config.get('lambda_gae', 0.95)
-        self.clip_epsilon = config.get('clip_epsilon', 0.2)
-        self.value_loss_coef = config.get('value_loss_coef', 0.5)
-        self.entropy_coef = config.get('entropy_coef', 0.01)
-        self.max_grad_norm = config.get('max_grad_norm', 0.5)
-        self.ppo_epochs = config.get('ppo_epochs', 4)
-        self.mini_batch_size = config.get('mini_batch_size', 64)
         
-        # Networks
+        # GAE lambda: controls bias-variance tradeoff in advantage estimation
+        # Higher values = less bias but more variance, lower values = more bias but less variance
+        self.lambda_gae = config.get('lambda_gae', 0.95)
+        
+        # PPO clipping parameter: prevents too large policy updates
+        # This is PPO's key innovation for stable learning
+        self.clip_epsilon = config.get('clip_epsilon', 0.2)  # 20% maximum policy change
+        
+        # Loss function coefficients: balance different learning objectives
+        self.value_loss_coef = config.get('value_loss_coef', 0.5)    # How much to weight value learning
+        self.entropy_coef = config.get('entropy_coef', 0.01)         # Encourages exploration
+        
+        # Gradient clipping: prevents exploding gradients that can destabilize training
+        self.max_grad_norm = config.get('max_grad_norm', 0.5)
+        
+        # Training schedule parameters
+        self.ppo_epochs = config.get('ppo_epochs', 4)               # How many times to reuse each batch
+        self.mini_batch_size = config.get('mini_batch_size', 64)    # Size of training mini-batches
+        
+        # Neural Networks Setup
+        # Actor-Critic architecture: combines policy (actor) and value estimation (critic)
+        # This is more efficient than having separate networks
         self.actor_critic = ActorCriticNetwork(
             obs_space, action_space, config, agent_id
         ).to(self.device)
         
-        # Optimizer
+        # Optimizer: Adam is standard for neural network training
+        # Learning rate controls how big steps to take during learning
         self.optimizer = Adam(
-            self.actor_critic.parameters(), 
-            lr=config.get('lr', 3e-4),
-            eps=1e-5
+            self.actor_critic.parameters(),      # Parameters to optimize
+            lr=config.get('lr', 3e-4),          # Learning rate (3e-4 = 0.0003)
+            eps=1e-5                            # Small constant for numerical stability
         )
         
-        # Learning rate scheduler
+        # Learning rate scheduler: gradually reduces learning rate over time
+        # This helps with convergence - start with large steps, end with small steps
         self.lr_scheduler = torch.optim.lr_scheduler.StepLR(
             self.optimizer, 
-            step_size=config.get('lr_decay_steps', 1000),
-            gamma=config.get('lr_decay', 0.99)
+            step_size=config.get('lr_decay_steps', 1000),  # Reduce LR every 1000 steps
+            gamma=config.get('lr_decay', 0.99)            # Multiply LR by 0.99 each decay
         )
         
-        print(f"Initialized IPPO Agent {agent_id} with {sum(p.numel() for p in self.actor_critic.parameters())} parameters")
+        # Experience storage for on-policy learning
+        # PPO is "on-policy" meaning it learns from recently collected experiences
+        self.reset_memory()  # Initialize empty memory buffers
+        
+        print(f"Initialized IPPO Agent {agent_id}")
+        print(f"Network parameters: {sum(p.numel() for p in self.actor_critic.parameters())}")
+        print(f"Learning rate: {config.get('lr', 3e-4)}")
     
     def get_action(self, observation: Dict, training: bool = True) -> Tuple[int, float, float]:
         """
-        Select an action given the current observation.
+        Select an action given the current observation using the learned policy.
+        
+        This is the core decision-making method. The agent uses its actor network
+        to compute action probabilities, then either samples from this distribution
+        (during training) or chooses the most likely action (during evaluation).
         
         Args:
-            observation: Current observation from the environment
-            training: Whether the agent is in training mode
+            observation (Dict): Current state observation from environment
+                               Example: {'image': grid_state, 'direction': facing_dir}
+            training (bool): Whether agent is in training mode
+                            True: Sample actions for exploration
+                            False: Choose best action deterministically
             
         Returns:
-            Tuple of (action, log_probability, value_estimate)
+            Tuple[int, float, float]: (action, log_probability, value_estimate)
+                action: Integer ID of chosen action
+                log_probability: Log probability of chosen action (for PPO updates)
+                value_estimate: Critic's estimate of state value
+        
+        For Beginners:
+        This is the agent's "decision-making process". It looks at the current
+        situation and decides what to do, while also estimating how good the
+        current situation is.
         """
+        # Disable gradient computation for action selection (saves memory and computation)
         with torch.no_grad():
+            # Convert observation to tensor format for neural network
             obs_tensor = self._process_observation(observation)
+            
+            # Forward pass through actor-critic network
+            # action_logits: unnormalized probabilities for each action
+            # value: estimated value of current state
             action_logits, value = self.actor_critic(obs_tensor)
             
             if training:
-                # Sample from policy distribution
+                # Training mode: sample from policy distribution for exploration
+                # Create categorical distribution from action logits
                 dist = Categorical(logits=action_logits)
+                # Sample an action according to the learned probabilities
                 action = dist.sample()
+                # Compute log probability of chosen action (needed for PPO loss)
                 log_prob = dist.log_prob(action)
             else:
-                # Take greedy action during evaluation
+                # Evaluation mode: choose most likely action (greedy/deterministic)
                 action = torch.argmax(action_logits, dim=-1)
+                # Still compute log probability for consistency
                 dist = Categorical(logits=action_logits)
                 log_prob = dist.log_prob(action)
             
+            # Return action and associated information
             return action.item(), log_prob.item(), value.item()
     
     def _process_observation(self, observation: Dict) -> Dict[str, torch.Tensor]:
-        """Convert observation to tensor format."""
+        """
+        Convert observation dictionary to tensor format for neural networks.
+        
+        Different environments provide observations in different formats (images,
+        vectors, scalars). This method standardizes them into tensor format.
+        
+        Args:
+            observation (Dict): Raw observation from environment
+            
+        Returns:
+            Dict[str, torch.Tensor]: Processed observation tensors
+        
+        For Beginners:
+        This is like translating the environment's "language" into the neural
+        network's "language". Each type of information gets converted to numbers.
+        """
         processed = {}
         for key, value in observation.items():
             if isinstance(value, np.ndarray):
+                # Convert numpy arrays to PyTorch tensors
                 processed[key] = torch.tensor(value, dtype=torch.float32).unsqueeze(0).to(self.device)
             else:
+                # Convert scalars to single-element tensors
                 processed[key] = torch.tensor([value], dtype=torch.float32).to(self.device)
         return processed
     
     def store_transition(self, observation: Dict, action: int, log_prob: float, 
                         value: float, reward: float, done: bool):
-        """Store a transition in the agent's memory."""
+        """
+        Store a single experience transition in the agent's memory.
+        
+        PPO collects a batch of experiences before updating, so each transition
+        is stored until there are enough for a training update.
+        
+        Args:
+            observation (Dict): State where action was taken
+            action (int): Action that was taken
+            log_prob (float): Log probability of the action under current policy
+            value (float): Value estimate of the state
+            reward (float): Reward received after taking action
+            done (bool): Whether episode ended after this transition
+        
+        For Beginners:
+        This is like writing in a diary: "In situation X, I did action Y,
+        got reward Z, and the episode ended/continued."
+        """
         self.memory['observations'].append(observation)
         self.memory['actions'].append(action)
         self.memory['log_probs'].append(log_prob)
@@ -133,32 +279,46 @@ class IPPOAgent(MARLAgent):
     
     def update(self, next_value: float = 0.0) -> Dict[str, float]:
         """
-        Update the agent's policy using collected experiences.
+        Update the agent's policy using collected experiences (PPO update).
+        
+        This implements the core PPO algorithm:
+        1. Compute advantages using Generalized Advantage Estimation (GAE)
+        2. Perform multiple epochs of policy and value function updates
+        3. Use clipping to prevent too-large policy changes
         
         Args:
-            next_value: Value estimate of the next state (for bootstrapping)
+            next_value (float): Value estimate of next state (for bootstrapping)
+                               Used to compute accurate advantage estimates
             
         Returns:
-            Dictionary containing loss values and metrics
-        """
-        if len(self.memory['rewards']) == 0:
-            return {}
+            Dict[str, float]: Training metrics and loss values
+                             Example: {'policy_loss': 0.05, 'value_loss': 0.03, ...}
         
-        # Convert lists to tensors
-        observations = self.memory['observations']
+        For Beginners:
+        This is the "learning phase" where the agent studies its recent experiences
+        and updates its strategy to perform better in the future.
+        """
+        # Check if we have any experiences to learn from
+        if len(self.memory['rewards']) == 0:
+            return {}  # Nothing to learn from yet
+        
+        # Convert experience lists to tensors for batch processing
+        observations = self.memory['observations']  # Keep as list for now
         actions = torch.tensor(self.memory['actions'], dtype=torch.long).to(self.device)
         old_log_probs = torch.tensor(self.memory['log_probs'], dtype=torch.float32).to(self.device)
         values = torch.tensor(self.memory['values'], dtype=torch.float32).to(self.device)
         rewards = torch.tensor(self.memory['rewards'], dtype=torch.float32).to(self.device)
         dones = torch.tensor(self.memory['dones'], dtype=torch.float32).to(self.device)
         
-        # Compute advantages and returns using GAE
+        # Compute advantages and returns using Generalized Advantage Estimation (GAE)
+        # This estimates "how much better was this action compared to average"
         next_values = torch.cat([values[1:], torch.tensor([next_value]).to(self.device)])
         advantages = compute_gae(
             rewards.unsqueeze(1), values.unsqueeze(1), next_values.unsqueeze(1),
             dones.unsqueeze(1), self.gamma, self.lambda_gae
         ).squeeze(1)
         
+        # Returns = advantages + baseline values (what we're trying to predict)
         returns = advantages + values
         
         # Normalize advantages

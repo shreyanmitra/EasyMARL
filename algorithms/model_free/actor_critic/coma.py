@@ -1,51 +1,135 @@
 """
-Counterfactual Multi-Agent Policy Gradients (COMA) algorithm.
+(C) Shreyan Mitra, based on starter code by Natasha Jaques
 
-COMA uses a centralized critic with counterfactual reasoning to compute
-individual agent advantages while maintaining decentralized actors.
+Counterfactual Multi-Agent Policy Gradients (COMA) Algorithm
+
+COMA is a sophisticated multi-agent policy gradient method that solves the
+multi-agent credit assignment problem using counterfactual reasoning.
+
+Key Innovation - Counterfactual Advantage:
+Instead of asking "How good was this action?", COMA asks:
+"How much better was this action compared to the average action this agent could have taken?"
+
+How COMA Works:
+1. Centralized Critic: Learns Q(s, u₁, u₂, ..., uₙ) - joint action-value function
+2. Counterfactual Baseline: For agent i, compute Q(s, u₋ᵢ, uᵢ) vs Q(s, u₋ᵢ, avg(uᵢ))
+3. Individual Advantage: Advantage = Q(actual) - Q(counterfactual baseline)
+4. Policy Gradient: Update each agent's policy using its individual advantage
+
+When to Use COMA:
+✅ Mixed cooperative-competitive environments
+✅ Need for sophisticated credit assignment
+✅ Discrete action spaces (original version)
+✅ When you want to understand each agent's contribution
+✅ Environments where individual agent impact is unclear
+
+Key Advantages:
+✅ Addresses multi-agent credit assignment problem
+✅ Theoretically grounded advantage estimation
+✅ Works well with heterogeneous agents
+✅ Provides interpretable individual contributions
+
+Limitations:
+❌ High computational cost (needs joint action space)
+❌ Originally designed for discrete actions
+❌ Complex to implement correctly
+❌ Requires careful tuning
+
+Comparison with Other Algorithms:
+- vs MAPPO: More sophisticated credit assignment but higher computational cost
+- vs QMIX: Policy gradients vs value-based, better for continuous control
+- vs MADDPG: Better credit assignment but more complex
+
+For MARL Beginners:
+COMA is advanced! Start with IPPO or MAPPO first. COMA addresses the question:
+"In a team setting, how do we know which team member contributed to success?"
+It's like having a coach who can evaluate each player's impact by imagining
+what would have happened if they had played differently.
+
+Paper: "Counterfactual Multi-Agent Policy Gradients" (2018)
+Use Cases: StarCraft II, Capture the Flag, complex coordination tasks
 """
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.distributions import Categorical
-from torch.optim import Adam
-import numpy as np
-from typing import Dict, List, Tuple, Any
+# Import necessary libraries for deep learning and multi-agent systems
+import torch                    # PyTorch for neural networks
+import torch.nn as nn           # Neural network modules
+import torch.nn.functional as F # Activation functions and utilities
+from torch.distributions import Categorical  # For sampling from probability distributions
+from torch.optim import Adam    # Adam optimizer for gradient-based learning
+import numpy as np              # Numerical computations
+from typing import Dict, List, Tuple, Any  # Type hints for code clarity
 
+# Import base classes from our MARL framework
 from .base import MARLAgent, MARLAlgorithm
 
 
 class COMAAgent(MARLAgent):
     """
-    COMA agent with decentralized actor.
+    Counterfactual Multi-Agent Policy Gradients Agent.
+    
+    This agent implements COMA's decentralized actor with sophisticated
+    credit assignment through counterfactual reasoning. Each agent has
+    its own policy but benefits from a shared centralized critic that
+    can perform counterfactual analysis.
+    
+    Key Components:
+    1. Decentralized Actor: π(action|local_observation) - only uses local info
+    2. Centralized Critic: Q(global_state, joint_actions) - sees everything
+    3. Counterfactual Baseline: Estimates what would happen with "average" actions
+    4. Individual Advantage: Measures each agent's specific contribution
+    
+    Architecture Insight:
+    - Actor Network: Input = local observation → Output = action probabilities
+    - Critic Network: Input = (global_state, all_actions) → Output = Q-value
+    - Counterfactual: Critic evaluates current actions vs baseline actions
+    
+    For MARL Beginners:
+    Think of this as an agent that plays its own game (decentralized) but
+    has access to a "super coach" who can tell it exactly how much its
+    individual actions contributed to the team's success or failure.
     """
     
     def __init__(self, agent_id: int, obs_space: Dict, action_space: int, config: Dict):
         """
-        Initialize the COMA agent.
+        Initialize the COMA agent with decentralized actor network.
         
         Args:
-            agent_id: Unique identifier for this agent
-            obs_space: Individual observation space
-            action_space: Number of available actions
-            config: Configuration dictionary
+            agent_id (int): Unique identifier for this agent
+            obs_space (Dict): Local observation space for this agent
+                             Example: {'image': (7, 7, 3), 'direction': 4}
+            action_space (int): Number of actions this agent can take
+                               Example: 6 for MultiGrid environments
+            config (Dict): Configuration containing hyperparameters
+                          Example: {'gamma': 0.99, 'lr_actor': 3e-4, ...}
+        
+        For Beginners:
+        This sets up an agent that can act independently but will receive
+        sophisticated feedback about its individual contributions during training.
         """
+        # Call parent class constructor to set up basic agent properties
         super().__init__(agent_id, obs_space, action_space, config)
         
-        # COMA hyperparameters
+        # COMA Core Hyperparameters
+        # Discount factor: how much the agent values future rewards
         self.gamma = config.get('gamma', 0.99)
+        
+        # GAE lambda: controls bias-variance tradeoff in advantage estimation
         self.lambda_gae = config.get('lambda_gae', 0.95)
+        
+        # Entropy coefficient: encourages exploration by rewarding diverse actions
         self.entropy_coef = config.get('entropy_coef', 0.01)
+        
+        # Gradient clipping: prevents exploding gradients
         self.max_grad_norm = config.get('max_grad_norm', 0.5)
         
-        # Actor network (decentralized)
+        # Actor Network Setup (Decentralized)
+        # This network only sees local observations, maintaining decentralized execution
         self.actor = COMAActorNetwork(obs_space, action_space, config).to(self.device)
         
-        # Actor optimizer
+        # Actor Optimizer for Learning
         self.actor_optimizer = Adam(
             self.actor.parameters(), 
-            lr=config.get('lr_actor', 3e-4)
+            lr=config.get('lr_actor', 3e-4)  # Learning rate for policy updates
         )
         
         print(f"Initialized COMA Agent {agent_id}")

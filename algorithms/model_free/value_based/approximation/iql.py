@@ -1,52 +1,138 @@
 """
-Independent Q-Learning (IQL) algorithm for multi-agent environments.
+(C) Shreyan Mitra, based on starter code by Natasha Jaques
 
-IQL is the simplest multi-agent Q-learning approach where each agent learns
-independently using standard Q-learning, treating other agents as part of the environment.
+Independent Q-Learning (IQL) Algorithm for Multi-Agent Reinforcement Learning
+
+IQL is the simplest and most straightforward approach to multi-agent Q-learning.
+Each agent learns independently using standard single-agent Q-learning, treating
+all other agents as part of the dynamic environment.
+
+Key Characteristics:
+✅ Extremely simple to understand and implement
+✅ No coordination between agents during learning
+✅ Each agent treats others as "moving parts" of the environment
+✅ Scales well to many agents
+✅ Good baseline for comparison with more sophisticated methods
+
+How IQL Works:
+1. Each agent has its own Q-network: Q(observation, action) → value
+2. Agents learn using standard Q-learning with epsilon-greedy exploration
+3. No information sharing between agents during training
+4. Each agent sees other agents' actions as environmental changes
+
+When to Use IQL:
+✅ First introduction to multi-agent Q-learning (simplest starting point)
+✅ Large number of agents where coordination is computationally expensive
+✅ Environments where independent learning is sufficient
+✅ As a baseline to compare against more sophisticated algorithms
+✅ When computational resources are limited
+
+Comparison with Other Algorithms:
+- vs QMIX: Much simpler but no explicit coordination
+- vs MADDPG: Discrete actions only, much simpler
+- vs IPPO: Uses Q-learning instead of policy gradients
+
+Limitations:
+❌ No explicit coordination between agents
+❌ Can be unstable due to non-stationary environment (other agents learning)
+❌ May not find optimal joint policies
+❌ Limited sample efficiency compared to coordinated methods
+
+For MARL Beginners:
+IQL is the perfect starting point for understanding multi-agent Q-learning!
+It's just single-agent Q-learning applied independently to each agent.
+Master this before moving to more complex coordination methods.
+
+Paper: Extension of standard Q-learning to multi-agent settings
+Use Cases: Simple coordination tasks, baseline comparisons, educational purposes
 """
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.optim import Adam
-import numpy as np
-from typing import Dict, List, Tuple, Any
-import copy
+# Import necessary libraries for deep learning and multi-agent systems
+import torch                    # PyTorch for neural networks
+import torch.nn as nn           # Neural network modules
+import torch.nn.functional as F # Activation functions and utilities
+from torch.optim import Adam    # Adam optimizer for gradient-based learning
+import numpy as np              # Numerical computations
+from typing import Dict, List, Tuple, Any  # Type hints for code clarity
+import copy                     # For creating deep copies of networks
 
+# Import base classes from our MARL framework
 from .base import MARLAgent, MARLAlgorithm, ReplayBuffer
 
 
 class IQLAgent(MARLAgent):
     """
-    Independent Q-Learning agent implementation.
+    Independent Q-Learning Agent.
+    
+    This agent implements standard Q-learning independently in a multi-agent environment.
+    It learns to estimate Q-values Q(state, action) for its own actions while treating
+    other agents as part of the dynamic environment.
+    
+    Key Components:
+    1. Q-Network: Estimates Q(observation, action) values
+    2. Target Network: Stable version for computing target Q-values
+    3. Epsilon-Greedy: Balances exploration vs exploitation
+    4. Experience Replay: Stores and reuses past experiences
+    
+    For MARL Beginners:
+    Think of this as a single-agent Q-learning algorithm that happens to be
+    in a world with other learning agents. Each agent learns independently,
+    like students studying different subjects without directly helping each other.
     """
     
     def __init__(self, agent_id: int, obs_space: Dict, action_space: int, config: Dict):
         """
-        Initialize the IQL agent.
+        Initialize the IQL agent with Q-network and learning parameters.
         
         Args:
-            agent_id: Unique identifier for this agent
-            obs_space: Observation space specification
-            action_space: Number of available actions
-            config: Configuration dictionary containing hyperparameters
+            agent_id (int): Unique identifier for this agent
+            obs_space (Dict): What this agent can observe from the environment
+                             Example: {'image': (7, 7, 3), 'direction': 4}
+            action_space (int): Number of actions this agent can take
+                               Example: 6 for MultiGrid environments
+            config (Dict): Learning configuration and hyperparameters
+                          Example: {'gamma': 0.99, 'epsilon_start': 1.0, 'lr': 1e-3, ...}
+        
+        For Beginners:
+        This sets up the agent's learning system: its Q-network (brain),
+        exploration strategy (epsilon-greedy), and learning parameters.
         """
+        # Call parent class constructor to set up basic agent properties
         super().__init__(agent_id, obs_space, action_space, config)
         
-        # Q-learning hyperparameters
-        self.gamma = config.get('gamma', 0.99)
-        self.epsilon = config.get('epsilon_start', 1.0)
-        self.epsilon_end = config.get('epsilon_end', 0.05)
-        self.epsilon_decay = config.get('epsilon_decay', 0.995)
-        self.lr = config.get('lr', 1e-3)
-        self.target_update_freq = config.get('target_update_freq', 100)
+        # Q-Learning Core Hyperparameters
+        # Discount factor: how much the agent values future rewards vs immediate rewards
+        self.gamma = config.get('gamma', 0.99)  # 0.99 means future rewards worth 99% of immediate
         
-        # Networks
+        # Epsilon-greedy exploration parameters
+        # Start with high exploration and gradually reduce it
+        self.epsilon = config.get('epsilon_start', 1.0)        # Current exploration rate (100% initially)
+        self.epsilon_end = config.get('epsilon_end', 0.05)     # Minimum exploration rate (5% final)
+        self.epsilon_decay = config.get('epsilon_decay', 0.995) # How fast to reduce exploration
+        
+        # Learning rate: how big steps to take when updating Q-values
+        self.lr = config.get('lr', 1e-3)  # 1e-3 = 0.001
+        
+        # Target network update frequency: how often to sync target network
+        self.target_update_freq = config.get('target_update_freq', 100)  # Every 100 updates
+        
+        # Neural Networks Setup
+        # Main Q-network: learns Q-values from experiences
         self.q_network = IQLNetwork(obs_space, action_space, config).to(self.device)
+        
+        # Target Q-network: stable version for computing target values
+        # Deep copy ensures completely independent parameters
         self.target_q_network = copy.deepcopy(self.q_network)
         
-        # Optimizer
+        # Optimizer: Adam is standard for neural network training
         self.optimizer = Adam(self.q_network.parameters(), lr=self.lr)
+        
+        # Training tracking
+        self.update_count = 0  # Count updates for target network synchronization
+        
+        print(f"Initialized IQL Agent {agent_id}")
+        print(f"Q-network parameters: {sum(p.numel() for p in self.q_network.parameters())}")
+        print(f"Starting epsilon: {self.epsilon}, Learning rate: {self.lr}")
         
         # Training statistics
         self.update_count = 0

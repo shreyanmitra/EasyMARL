@@ -1,47 +1,130 @@
 """
-Value Decomposition Networks (VDN) algorithm for multi-agent environments.
+(C) Shreyan Mitra, based on starter code by Natasha Jaques
 
-VDN learns individual Q-values for each agent and sums them to get the joint Q-value,
-satisfying the Individual-Global-Max (IGM) principle through additive value decomposition.
+Value Decomposition Networks (VDN) Algorithm
+
+VDN is the foundational algorithm for value-based multi-agent reinforcement learning.
+It's conceptually simple but powerful, making it an excellent starting point for
+understanding how individual agents can learn to cooperate without explicit communication.
+
+Key Innovation - Additive Value Decomposition:
+VDN decomposes the joint team Q-value into individual agent Q-values through simple addition:
+Q_total(s, u) = Q₁(s₁, u₁) + Q₂(s₂, u₂) + ... + Qₙ(sₙ, uₙ)
+
+How VDN Works:
+1. Each agent learns its own Q-function based on local observations
+2. The team's total Q-value is the sum of individual Q-values
+3. Joint actions are selected by each agent taking their individually best action
+4. Training uses global rewards but maintains decentralized execution
+
+When to Use VDN:
+✅ Cooperative tasks with shared rewards
+✅ When you want simple, interpretable cooperation
+✅ Discrete action spaces
+✅ When communication during execution is not possible
+✅ As a baseline for more complex methods
+
+Key Advantages:
+✅ Simple and easy to understand
+✅ Computationally efficient
+✅ Naturally satisfies Individual-Global-Max (IGM) principle
+✅ Scales well to many agents
+✅ Strong theoretical foundations
+
+Limitations:
+❌ Limited representational capacity (only additive interactions)
+❌ Cannot capture complex agent interactions
+❌ May struggle with coordination requiring timing or sequencing
+
+Comparison with Other Algorithms:
+- vs QMIX: Simpler but less expressive (QMIX uses non-linear mixing)
+- vs Independent Q-Learning: Better credit assignment through shared rewards
+- vs MAPPO: Value-based vs policy gradient approach
+
+For MARL Beginners:
+VDN is perfect for learning MARL concepts! It extends single-agent Q-learning
+to multi-agent settings in the most straightforward way possible. Master this
+before moving to more complex algorithms like QMIX or MAPPO.
+
+Paper: "Value-Decomposition Networks For Cooperative Multi-Agent Learning" (2017)
+Use Cases: Simple coordination tasks, resource allocation, basic teamwork scenarios
 """
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.optim import Adam
-import numpy as np
-from typing import Dict, List, Tuple, Any
-import copy
+# Import necessary libraries for deep learning and multi-agent systems
+import torch                    # PyTorch for neural networks
+import torch.nn as nn           # Neural network modules
+import torch.nn.functional as F # Activation functions and utilities
+from torch.optim import Adam    # Adam optimizer for gradient-based learning
+import numpy as np              # Numerical computations
+from typing import Dict, List, Tuple, Any  # Type hints for code clarity
+import copy                     # For creating deep copies of networks
 
+# Import base classes from our MARL framework
 from .base import MARLAgent, MARLAlgorithm
 
 
 class VDNAgent(MARLAgent):
     """
-    Individual Q-network agent for VDN.
+    Value Decomposition Networks Agent.
+    
+    This agent learns its own Q-function that estimates the value of taking
+    different actions from local observations. The key insight is that when
+    all agents do this and the team reward is shared, they naturally learn
+    to cooperate through the credit assignment of shared rewards.
+    
+    Key Components:
+    1. Individual Q-Network: Q(local_observation, action) → value estimate
+    2. Target Network: Stable target for temporal difference learning
+    3. Epsilon-Greedy Exploration: Balance between exploitation and exploration
+    4. Experience Replay: Learn from past experiences
+    
+    Architecture Insight:
+    - Q-Network: Input = local observation → Output = Q-values for each action
+    - Target Network: Delayed copy of Q-network for stable learning
+    - Additive Combination: Team value = sum of individual Q-values
+    
+    For MARL Beginners:
+    Think of this as a single-agent Q-learning agent that happens to be on a team.
+    It learns the value of its actions, but because all agents share the same reward,
+    they naturally learn to work together to maximize the team's performance.
     """
     
     def __init__(self, agent_id: int, obs_space: Dict, action_space: int, config: Dict):
         """
-        Initialize the VDN agent.
+        Initialize the VDN agent with Q-networks for value-based learning.
         
         Args:
-            agent_id: Unique identifier for this agent
-            obs_space: Observation space specification
-            action_space: Number of available actions
-            config: Configuration dictionary containing hyperparameters
+            agent_id (int): Unique identifier for this agent
+            obs_space (Dict): Local observation space for this agent
+                             Example: {'image': (7, 7, 3), 'direction': 4}
+            action_space (int): Number of actions this agent can take
+                               Example: 6 for MultiGrid environments
+            config (Dict): Configuration containing hyperparameters
+                          Example: {'epsilon_start': 1.0, 'epsilon_decay': 0.995, ...}
+        
+        For Beginners:
+        This creates an agent that learns the value of different actions
+        from its local perspective, similar to single-agent Q-learning.
         """
+        # Call parent class constructor to set up basic agent properties
         super().__init__(agent_id, obs_space, action_space, config)
         
-        # Q-learning hyperparameters
-        self.epsilon = config.get('epsilon_start', 1.0)
-        self.epsilon_end = config.get('epsilon_end', 0.05)
-        self.epsilon_decay = config.get('epsilon_decay', 0.995)
+        # Epsilon-Greedy Exploration Parameters
+        # These control the balance between exploration (trying new actions) and
+        # exploitation (using known good actions)
+        self.epsilon = config.get('epsilon_start', 1.0)        # Start with high exploration
+        self.epsilon_end = config.get('epsilon_end', 0.05)     # End with low exploration
+        self.epsilon_decay = config.get('epsilon_decay', 0.995) # How fast to reduce exploration
         
-        # Networks
+        # Q-Network Architecture
+        # Main network: learns to estimate Q-values for state-action pairs
         self.q_network = VDNQNetwork(obs_space, action_space, config).to(self.device)
+        
+        # Target network: provides stable targets for temporal difference learning
+        # This is a key technique in deep Q-learning to prevent instability
         self.target_q_network = copy.deepcopy(self.q_network)
         
+        # Debug information
         print(f"Initialized VDN Agent {agent_id} with {sum(p.numel() for p in self.q_network.parameters())} parameters")
     
     def get_action(self, observation: Dict, training: bool = True) -> int:

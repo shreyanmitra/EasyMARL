@@ -1,52 +1,102 @@
 """
+(C) Shreyan Mitra, based on starter code by Natasha Jaques
+
 EasyMARL Flask Backend API
- 
-This Flask server provides REST API endpoints for the React frontend
-to communicate with the Python training infrastructure. It maintains
-the same functionality as the original GUI while enabling modern
-web deployment on GitHub Pages.
+Modern Web Interface for Multi-Agent Reinforcement Learning
+
+This Flask server provides REST API endpoints that allow the React frontend
+to communicate with the Python MARL training infrastructure. It maintains
+all the functionality of the original GUI while enabling modern web deployment.
+
+For MARL Beginners:
+This is the bridge between the web interface (React) and the AI training code (Python).
+You don't need to understand Flask to use EasyMARL, but this enables:
+- Training agents through a web browser
+- Real-time progress monitoring
+- Easy deployment to GitHub Pages or other platforms
 
 Key Features:
-- REST API endpoints for training control
+- REST API endpoints for training control (start, stop, configure)
 - Real-time progress updates via polling
 - Integration with existing Simple/Modern controllers
-- WandB logging support
+- Weights & Biases (WandB) logging support
 - Static file serving for React build
+- Thread-safe training session management
+
+API Endpoints:
+- GET /api/algorithms - List available MARL algorithms
+- POST /api/training/start - Start training with specified configuration  
+- GET /api/training/status - Get current training progress
+- POST /api/training/stop - Stop current training session
+- GET /api/config/defaults - Get default configuration for algorithms
+
+Architecture:
+React Frontend ↔ Flask API ↔ MARL Controllers ↔ Training Algorithms
+
+For Developers:
+The Flask server runs the actual MARL training in background threads while
+serving the React frontend and providing API access to training status.
 """
 
-from flask import Flask, request, jsonify, send_from_directory
-from flask_cors import CORS
-import os
-import json
-import threading
-import time
-import yaml
-from datetime import datetime
-import uuid
+# Import Flask components for web server functionality
+from flask import Flask, request, jsonify, send_from_directory  # Core Flask functionality
+from flask_cors import CORS                                    # Cross-Origin Resource Sharing
+import os          # Operating system interface
+import json        # JSON data handling
+import threading   # Multi-threading support
+import time        # Time-related functions
+import yaml        # YAML configuration file parsing
+from datetime import datetime  # Date and time handling
+import uuid        # UUID generation for session IDs
 
-# Import existing EasyMARL components
-import utils
-from simple_multiagent_controller import SimpleMultiAgentController
-from modern_multiagent_controller import ModernMultiAgentController
-import torch
+# Import our EasyMARL framework components
+import utils                                          # Utility functions
+from simple_multiagent_controller import SimpleMultiAgentController     # Basic training controller
+from modern_multiagent_controller import ModernMultiAgentController     # Advanced training controller
+import torch                                          # PyTorch for GPU detection
 
-# Initialize Flask app
+# Initialize Flask web application
 app = Flask(__name__, static_folder='react-frontend/build', static_url_path='')
-CORS(app)  # Enable CORS for React development
+CORS(app)  # Enable Cross-Origin Resource Sharing for React development server
 
-# Global training state
-training_sessions = {}
-current_session = None
+# Global training state management
+# These variables maintain the state across API requests
+training_sessions = {}  # Dictionary to store multiple training sessions
+current_session = None  # Reference to currently active training session
 
 class TrainingSession:
     """
-    Manages a single training session with progress tracking.
+    Manages a single MARL training session with progress tracking.
     
-    This class wraps the existing controllers and provides
-    thread-safe access to training progress for the API.
+    This class wraps the existing controllers (Simple/Modern) and provides
+    thread-safe access to training progress for the web API. Each training
+    session runs in its own thread to prevent blocking the web server.
+    
+    Key Responsibilities:
+    1. Execute MARL training in background thread
+    2. Track training progress (episodes, rewards, losses)
+    3. Provide thread-safe status updates for API
+    4. Manage training lifecycle (start, stop, cleanup)
+    
+    For MARL Beginners:
+    Think of this as a "training manager" that handles one training experiment.
+    It runs the AI training in the background while letting you check progress
+    through the web interface.
     """
     
     def __init__(self, session_id, config):
+        """
+        Initialize a new training session with the specified configuration.
+        
+        Args:
+            session_id (str): Unique identifier for this training session
+            config (dict): Training configuration including algorithm, environment, etc.
+                          Example: {'algorithm': 'ippo', 'env_name': 'MultiGrid-Cluttered-Fixed-15x15'}
+        
+        For Beginners:
+        This sets up everything needed to run a MARL training experiment
+        based on the configuration from the web interface.
+        """
         self.session_id = session_id
         self.config = config
         self.controller = None

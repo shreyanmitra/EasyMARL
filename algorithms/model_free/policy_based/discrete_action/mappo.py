@@ -1,72 +1,160 @@
 """
-Multi-Agent Proximal Policy Optimization (MAPPO) algorithm.
+(C) Shreyan Mitra, based on starter code by Natasha Jaques
 
-MAPPO uses centralized value functions during training while maintaining
-decentralized policies for execution. This implementation includes parameter
-sharing options and advanced multi-agent features.
+Multi-Agent Proximal Policy Optimization (MAPPO) Algorithm
+
+MAPPO is the state-of-the-art policy gradient method for cooperative multi-agent
+reinforcement learning. It extends PPO to multi-agent settings by using centralized
+training with decentralized execution (CTDE) paradigm.
+
+Key Innovation - Centralized Value Functions:
+- Training: Value functions can see global state (centralized)
+- Execution: Policies only use local observations (decentralized)
+- This enables better credit assignment while maintaining practical deployment
+
+How MAPPO Works:
+1. Each agent has a decentralized policy π(action|local_observation)
+2. All agents share a centralized value function V(global_state)
+3. Uses PPO's clipping mechanism for stable policy updates
+4. Parameter sharing across agents for improved sample efficiency
+5. Generalized Advantage Estimation (GAE) for better gradient estimates
+
+When to Use MAPPO:
+✅ Cooperative multi-agent tasks (agents work toward common goal)
+✅ Need for sophisticated coordination
+✅ Large number of agents (parameter sharing helps)
+✅ Continuous or discrete action spaces
+✅ When sample efficiency is important
+
+Key Advantages:
+✅ State-of-the-art performance on many benchmarks
+✅ Stable training due to PPO's clipping mechanism
+✅ Scalable to many agents through parameter sharing
+✅ Handles both discrete and continuous actions
+✅ Strong theoretical foundations
+
+Comparison with Other Algorithms:
+- vs IPPO: Centralized training provides better coordination
+- vs QMIX: Policy gradients vs value-based, handles continuous actions
+- vs MADDPG: More stable training, better for cooperative tasks
+
+For MARL Beginners:
+MAPPO is advanced but very important. Start with IPPO to understand PPO,
+then move to MAPPO to see how centralized training improves coordination.
+It's currently the gold standard for cooperative MARL.
+
+Paper: "The Surprising Effectiveness of PPO in Cooperative Multi-Agent Games" (2021)
+Use Cases: Cooperative robotics, team coordination, resource management, StarCraft II
 """
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.distributions import Categorical
-from torch.optim import Adam
-import numpy as np
-from typing import Dict, List, Tuple, Any
+# Import necessary libraries for deep learning and multi-agent systems
+import torch                    # PyTorch for neural networks
+import torch.nn as nn           # Neural network modules
+import torch.nn.functional as F # Activation functions and utilities
+from torch.distributions import Categorical  # For sampling from probability distributions
+from torch.optim import Adam    # Adam optimizer for gradient-based learning
+import numpy as np              # Numerical computations
+from typing import Dict, List, Tuple, Any  # Type hints for code clarity
 
-from .base import MARLAgent, MARLAlgorithm, compute_gae
+# Import base classes and utilities from our MARL framework
+from .base import MARLAgent, MARLAlgorithm, compute_gae, normalize_advantages
 from networks.multigrid_network import MultiGridNetwork
 
 
 class MAPPOAgent(MARLAgent):
     """
-    MAPPO agent with centralized value function and decentralized policy.
+    Multi-Agent Proximal Policy Optimization Agent.
+    
+    This agent implements MAPPO, which combines the stability of PPO with the
+    coordination benefits of centralized training. Each agent has a decentralized
+    policy for execution but uses a centralized value function during training.
+    
+    Key Components:
+    1. Decentralized Policy: π(action|local_observation) - only sees local info
+    2. Centralized Critic: V(global_state) - sees global information during training
+    3. PPO Clipping: Prevents large policy updates for stable learning
+    4. Parameter Sharing: Agents can share parameters for better sample efficiency
+    
+    Architecture Insight:
+    - Policy Network: Input = local observation → Output = action probabilities
+    - Value Network: Input = global state → Output = state value estimate
+    - Shared Parameters: Multiple agents can use the same networks (optional)
+    
+    For MARL Beginners:
+    Think of this as IPPO agents with a "shared coach" (centralized critic) who
+    can see the whole field during training, but players (policies) still only
+    see their local area during the game.
     """
     
     def __init__(self, agent_id: int, obs_space: Dict, action_space: int, 
                  global_state_dim: int, n_agents: int, config: Dict):
         """
-        Initialize the MAPPO agent.
+        Initialize the MAPPO agent with policy and value networks.
         
         Args:
-            agent_id: Unique identifier for this agent
-            obs_space: Individual observation space
-            action_space: Number of available actions
-            global_state_dim: Dimension of global state for centralized critic
-            n_agents: Total number of agents
-            config: Configuration dictionary
+            agent_id (int): Unique identifier for this agent
+            obs_space (Dict): Local observation space for this agent
+                             Example: {'image': (7, 7, 3), 'direction': 4}
+            action_space (int): Number of actions this agent can take
+                               Example: 6 for MultiGrid environments
+            global_state_dim (int): Dimension of global state for centralized critic
+                                   This includes all agents' observations
+            n_agents (int): Total number of agents in the system
+                           Used for parameter sharing decisions
+            config (Dict): Configuration containing hyperparameters
+                          Example: {'gamma': 0.99, 'clip_epsilon': 0.2, ...}
+        
+        For Beginners:
+        This sets up an agent that can act independently but learns from
+        global information during training.
         """
+        # Call parent class constructor to set up basic agent properties
         super().__init__(agent_id, obs_space, action_space, config)
         
-        self.global_state_dim = global_state_dim
-        self.n_agents = n_agents
+        # Store multi-agent specific information
+        self.global_state_dim = global_state_dim  # Size of global state for critic
+        self.n_agents = n_agents                  # Total number of agents
         
-        # PPO hyperparameters
+        # PPO Core Hyperparameters (same as IPPO but applied to multi-agent setting)
+        # Discount factor: how much the agent values future rewards
         self.gamma = config.get('gamma', 0.99)
+        
+        # GAE lambda: controls bias-variance tradeoff in advantage estimation
         self.lambda_gae = config.get('lambda_gae', 0.95)
+        
+        # PPO clipping parameter: prevents too large policy updates
         self.clip_epsilon = config.get('clip_epsilon', 0.2)
-        self.value_loss_coef = config.get('value_loss_coef', 0.5)
-        self.entropy_coef = config.get('entropy_coef', 0.01)
+        
+        # Loss function coefficients: balance different learning objectives
+        self.value_loss_coef = config.get('value_loss_coef', 0.5)    # Value function learning weight
+        self.entropy_coef = config.get('entropy_coef', 0.01)         # Exploration encouragement
+        
+        # Gradient clipping: prevents exploding gradients
         self.max_grad_norm = config.get('max_grad_norm', 0.5)
         
-        # Networks
+        # Network Architecture Setup
+        # Actor Network: Converts local observations to action probabilities
+        # This is the "decentralized" part - only sees local information
         self.actor = MAPPOActor(obs_space, action_space, config).to(self.device)
         
-        # Centralized critic takes global state
+        # Critic Network: Estimates value from global state (centralized training)
+        # This is the "centralized" part - sees global information during training
         self.critic = MAPPOCritic(global_state_dim, config).to(self.device)
         
-        # Optimizers
+        # Optimizers for Learning
+        # Separate optimizers allow different learning rates for actor and critic
         self.actor_optimizer = Adam(
             self.actor.parameters(), 
-            lr=config.get('lr_actor', 3e-4),
-            eps=1e-5
+            lr=config.get('lr_actor', 3e-4),  # Actor learning rate (typically smaller)
+            eps=1e-5                          # Numerical stability
         )
         self.critic_optimizer = Adam(
             self.critic.parameters(), 
-            lr=config.get('lr_critic', 1e-3),
-            eps=1e-5
+            lr=config.get('lr_critic', 1e-3), # Critic learning rate (typically larger)
+            eps=1e-5                           # Numerical stability
         )
         
+        # Debug Information
         print(f"Initialized MAPPO Agent {agent_id}")
         print(f"Actor parameters: {sum(p.numel() for p in self.actor.parameters())}")
         print(f"Critic parameters: {sum(p.numel() for p in self.critic.parameters())}")
@@ -74,48 +162,99 @@ class MAPPOAgent(MARLAgent):
     def get_action(self, observation: Dict, global_state: np.ndarray, 
                    training: bool = True) -> Tuple[int, float, float]:
         """
-        Select an action and get value estimate.
+        Select an action using the decentralized policy and estimate value using centralized critic.
+        
+        This method demonstrates the core MAPPO principle:
+        - Policy (actor) only uses local observation (decentralized execution)
+        - Value function (critic) uses global state (centralized training)
         
         Args:
-            observation: Individual agent observation
-            global_state: Global state for value estimation
-            training: Whether in training mode
+            observation (Dict): Agent's local observation of the environment
+                               Example: {'image': 7x7x3 grid, 'direction': int}
+            global_state (np.ndarray): Complete global state for value estimation
+                                      Includes all agents' observations and environment state
+            training (bool): Whether agent is in training mode (affects action selection)
+                           True: Sample actions from policy (exploration)
+                           False: Take best action deterministically (exploitation)
             
         Returns:
-            Tuple of (action, log_probability, value_estimate)
+            Tuple[int, float, float]: 
+                - action: The selected action (integer)
+                - log_probability: Log probability of selected action (for PPO updates)
+                - value_estimate: Centralized critic's value estimate (for advantage calculation)
+        
+        For MARL Beginners:
+        This is where MAPPO's "centralized training, decentralized execution" happens:
+        1. Action selection only uses local observation (what the agent can see)
+        2. Value estimation uses global state (what a central observer can see)
+        3. During actual deployment, only the policy part is used
         """
+        # Disable gradient computation for inference (saves memory and computation)
         with torch.no_grad():
+            # Convert local observation to tensor format for neural network
             obs_tensor = self._process_observation(observation)
+            
+            # Convert global state to tensor for centralized critic
             state_tensor = torch.tensor(global_state, dtype=torch.float32).unsqueeze(0).to(self.device)
             
-            # Get action from policy
+            # Get action probabilities from decentralized policy (actor)
+            # This only uses LOCAL observation - key to decentralized execution
             action_logits = self.actor(obs_tensor)
             
             if training:
-                dist = Categorical(logits=action_logits)
-                action = dist.sample()
-                log_prob = dist.log_prob(action)
+                # Training Mode: Sample action from probability distribution
+                # This encourages exploration by sampling rather than always picking best action
+                dist = Categorical(logits=action_logits)  # Create probability distribution
+                action = dist.sample()                    # Sample an action
+                log_prob = dist.log_prob(action)         # Get log probability for PPO updates
             else:
-                action = torch.argmax(action_logits, dim=-1)
-                dist = Categorical(logits=action_logits)
-                log_prob = dist.log_prob(action)
+                # Evaluation Mode: Take the best action deterministically
+                # This ensures consistent performance during testing
+                action = torch.argmax(action_logits, dim=-1)  # Pick highest probability action
+                dist = Categorical(logits=action_logits)      # Still need distribution for log_prob
+                log_prob = dist.log_prob(action)             # Get log probability
             
             # Get value estimate from centralized critic
+            # This uses GLOBAL state - key to centralized training advantage
             value = self.critic(state_tensor)
             
+            # Return action, log probability, and value estimate
             return action.item(), log_prob.item(), value.item()
     
     def _process_observation(self, observation: Dict) -> torch.Tensor:
-        """Convert observation to tensor format."""
+        """
+        Convert observation dictionary to tensor format for neural network processing.
+        
+        This method handles the transformation from environment observations to
+        the format expected by the actor network. MultiGrid environments typically
+        provide observations as dictionaries with image data and additional features.
+        
+        Args:
+            observation (Dict): Raw observation from environment
+                               Example: {'image': np.array(7,7,3), 'direction': 2}
+                               
+        Returns:
+            torch.Tensor: Flattened observation tensor ready for neural network
+                         Shape: (1, total_observation_size)
+        
+        For MARL Beginners:
+        This is a utility function that converts the environment's observation
+        format into the format our neural networks expect (flat tensors).
+        """
         if isinstance(observation, dict):
+            # Process dictionary observations (common in MultiGrid)
             obs_list = []
             for key, value in observation.items():
                 if isinstance(value, np.ndarray):
+                    # Flatten multi-dimensional arrays (like images)
                     obs_list.append(torch.tensor(value, dtype=torch.float32).flatten())
                 else:
+                    # Convert single values to tensors
                     obs_list.append(torch.tensor([value], dtype=torch.float32))
+            # Concatenate all observation components into a single tensor
             obs_tensor = torch.cat(obs_list).unsqueeze(0).to(self.device)
         else:
+            # Handle simple array observations
             obs_tensor = torch.tensor(observation, dtype=torch.float32).unsqueeze(0).to(self.device)
         
         return obs_tensor
@@ -123,102 +262,195 @@ class MAPPOAgent(MARLAgent):
     def store_transition(self, observation: Dict, global_state: np.ndarray, 
                         action: int, log_prob: float, value: float, 
                         reward: float, done: bool):
-        """Store a transition in memory."""
-        self.memory['observations'].append(observation)
-        self.memory['global_states'].append(global_state)
-        self.memory['actions'].append(action)
-        self.memory['log_probs'].append(log_prob)
-        self.memory['values'].append(value)
-        self.memory['rewards'].append(reward)
-        self.memory['dones'].append(done)
+        """
+        Store a single transition (experience) in the agent's memory buffer.
+        
+        This method collects the data needed for PPO updates. Each transition
+        represents one step of interaction with the environment.
+        
+        Args:
+            observation (Dict): Agent's local observation at this step
+            global_state (np.ndarray): Global state for centralized value function
+            action (int): Action taken by the agent
+            log_prob (float): Log probability of the taken action
+            value (float): Value estimate from centralized critic
+            reward (float): Reward received from environment
+            done (bool): Whether episode ended after this step
+            
+        For MARL Beginners:
+        This is like keeping a diary of everything that happened during training.
+        We store all this information so we can learn from it later using PPO.
+        """
+        # Store all components of the transition for later learning
+        self.memory['observations'].append(observation)      # What the agent saw
+        self.memory['global_states'].append(global_state)    # Global environment state
+        self.memory['actions'].append(action)                # What the agent did
+        self.memory['log_probs'].append(log_prob)           # How confident the agent was
+        self.memory['values'].append(value)                  # How good the agent thought the state was
+        self.memory['rewards'].append(reward)                # What reward the agent got
+        self.memory['dones'].append(done)                    # Whether the episode ended
     
     def update_actor(self, batch_obs: List[Dict], batch_actions: torch.Tensor,
                      batch_old_log_probs: torch.Tensor, batch_advantages: torch.Tensor) -> float:
-        """Update the actor network."""
-        # Process observations
+        """
+        Update the actor (policy) network using PPO's clipped objective.
+        
+        This implements the core PPO policy update that prevents large policy changes
+        while encouraging the agent to take actions that led to high advantages.
+        
+        Args:
+            batch_obs (List[Dict]): Batch of observations from experience buffer
+            batch_actions (torch.Tensor): Actions that were taken
+            batch_old_log_probs (torch.Tensor): Log probabilities of actions under old policy
+            batch_advantages (torch.Tensor): Advantage estimates (how much better actions were)
+            
+        Returns:
+            float: Actor loss value for monitoring training progress
+            
+        For MARL Beginners:
+        This is where the agent learns to improve its action selection based on
+        which actions led to good outcomes (high advantages).
+        """
+        # Process batch of observations into tensor format
         obs_tensors = []
         for obs in batch_obs:
             obs_tensor = self._process_observation(obs)
             obs_tensors.append(obs_tensor)
         
+        # Stack all observations into a single batch tensor
         stacked_obs = torch.cat(obs_tensors, dim=0)
         
-        # Forward pass
+        # Forward pass through current policy network
         action_logits = self.actor(stacked_obs)
         dist = Categorical(logits=action_logits)
         
+        # Get log probabilities under current policy
         new_log_probs = dist.log_prob(batch_actions)
-        entropy = dist.entropy()
+        entropy = dist.entropy()  # Measure of policy randomness (good for exploration)
         
-        # PPO policy loss
-        ratio = torch.exp(new_log_probs - batch_old_log_probs)
-        surr1 = ratio * batch_advantages
-        surr2 = torch.clamp(ratio, 1 - self.clip_epsilon, 1 + self.clip_epsilon) * batch_advantages
-        policy_loss = -torch.min(surr1, surr2).mean()
+        # PPO Clipped Policy Loss
+        # This is the key innovation of PPO - prevents large policy updates
+        ratio = torch.exp(new_log_probs - batch_old_log_probs)  # new_policy / old_policy
+        surr1 = ratio * batch_advantages                        # Standard policy gradient
+        surr2 = torch.clamp(ratio, 1 - self.clip_epsilon, 1 + self.clip_epsilon) * batch_advantages  # Clipped version
+        policy_loss = -torch.min(surr1, surr2).mean()         # Take minimum (more conservative)
         
-        # Entropy bonus
+        # Entropy bonus encourages exploration
         entropy_loss = -entropy.mean()
         
-        # Total actor loss
+        # Total actor loss combines policy improvement with exploration bonus
         actor_loss = policy_loss + self.entropy_coef * entropy_loss
         
-        # Update actor
-        self.actor_optimizer.zero_grad()
-        actor_loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_grad_norm)
-        self.actor_optimizer.step()
+        # Perform gradient descent update
+        self.actor_optimizer.zero_grad()                                           # Clear previous gradients
+        actor_loss.backward()                                                      # Compute gradients
+        torch.nn.utils.clip_grad_norm_(self.actor.parameters(), self.max_grad_norm)  # Prevent exploding gradients
+        self.actor_optimizer.step()                                                # Update parameters
         
         return actor_loss.item()
     
     def update_critic(self, batch_global_states: torch.Tensor, 
                      batch_returns: torch.Tensor) -> float:
-        """Update the centralized critic."""
-        # Forward pass
-        values = self.critic(batch_global_states).squeeze()
+        """
+        Update the centralized critic network to better estimate state values.
         
-        # Value loss
+        The critic learns to predict the expected return (sum of future rewards)
+        from any given global state. This is crucial for advantage estimation.
+        
+        Args:
+            batch_global_states (torch.Tensor): Global states from experience buffer
+            batch_returns (torch.Tensor): Actual returns (discounted sum of rewards)
+                                         These are the "ground truth" values to learn
+            
+        Returns:
+            float: Critic loss value for monitoring training progress
+            
+        For MARL Beginners:
+        The critic acts like a "coach" who learns to evaluate how good different
+        game situations are by looking at the global state. This helps with
+        calculating advantages for the actor updates.
+        """
+        # Forward pass through critic network
+        values = self.critic(batch_global_states).squeeze()  # Get value predictions
+        
+        # Mean Squared Error loss between predicted and actual returns
+        # This teaches the critic to accurately predict future rewards
         value_loss = F.mse_loss(values, batch_returns)
         
-        # Update critic
-        self.critic_optimizer.zero_grad()
-        value_loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.max_grad_norm)
-        self.critic_optimizer.step()
+        # Perform gradient descent update
+        self.critic_optimizer.zero_grad()                                             # Clear previous gradients
+        value_loss.backward()                                                         # Compute gradients  
+        torch.nn.utils.clip_grad_norm_(self.critic.parameters(), self.max_grad_norm) # Prevent exploding gradients
+        self.critic_optimizer.step()                                                  # Update parameters
         
         return value_loss.item()
     
     def reset_memory(self):
-        """Reset agent memory."""
+        """
+        Clear the agent's experience memory buffer.
+        
+        This is called after each training update to prepare for collecting
+        new experiences. MAPPO uses on-policy learning, so old experiences
+        become stale after policy updates.
+        
+        For MARL Beginners:
+        Think of this as clearing the agent's short-term memory after it
+        has learned from recent experiences.
+        """
         self.memory = {
-            'observations': [],
-            'global_states': [],
-            'actions': [],
-            'log_probs': [],
-            'values': [],
-            'rewards': [],
-            'dones': []
+            'observations': [],      # Agent's local observations
+            'global_states': [],     # Global states for centralized critic
+            'actions': [],           # Actions taken by agent
+            'log_probs': [],        # Log probabilities of actions
+            'values': [],           # Value estimates from critic
+            'rewards': [],          # Rewards received from environment
+            'dones': []             # Episode termination flags
         }
     
     def save_model(self, path: str):
-        """Save the agent's model."""
+        """
+        Save the agent's neural networks and training state to disk.
+        
+        This saves both the actor and critic networks along with optimizer states,
+        allowing training to be resumed later.
+        
+        Args:
+            path (str): Base path for saving the model files
+            
+        For MARL Beginners:
+        This lets you save your trained agent so you can use it later or
+        continue training from where you left off.
+        """
         checkpoint = {
-            'actor_state_dict': self.actor.state_dict(),
-            'critic_state_dict': self.critic.state_dict(),
-            'actor_optimizer_state_dict': self.actor_optimizer.state_dict(),
-            'critic_optimizer_state_dict': self.critic_optimizer.state_dict(),
-            'agent_id': self.agent_id,
-            'config': self.config
+            'actor_state_dict': self.actor.state_dict(),                    # Actor network weights
+            'critic_state_dict': self.critic.state_dict(),                 # Critic network weights
+            'actor_optimizer_state_dict': self.actor_optimizer.state_dict(), # Actor optimizer state
+            'critic_optimizer_state_dict': self.critic_optimizer.state_dict(), # Critic optimizer state
+            'agent_id': self.agent_id,                                      # Agent identifier
+            'config': self.config                                           # Configuration used
         }
         torch.save(checkpoint, f"{path}_mappo_agent_{self.agent_id}.pth")
         print(f"Saved MAPPO Agent {self.agent_id} model to {path}_mappo_agent_{self.agent_id}.pth")
     
     def load_model(self, path: str):
-        """Load the agent's model."""
+        """
+        Load a previously saved agent model from disk.
+        
+        This restores both neural networks and optimizer states, allowing
+        training to continue from exactly where it was saved.
+        
+        Args:
+            path (str): Base path where the model was saved
+            
+        For MARL Beginners:
+        This loads a previously trained agent so you can continue training
+        or use it for evaluation.
+        """
         checkpoint = torch.load(f"{path}_mappo_agent_{self.agent_id}.pth", map_location=self.device)
-        self.actor.load_state_dict(checkpoint['actor_state_dict'])
-        self.critic.load_state_dict(checkpoint['critic_state_dict'])
-        self.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])
-        self.critic_optimizer.load_state_dict(checkpoint['critic_optimizer_state_dict'])
+        self.actor.load_state_dict(checkpoint['actor_state_dict'])           # Restore actor weights
+        self.critic.load_state_dict(checkpoint['critic_state_dict'])         # Restore critic weights
+        self.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])   # Restore actor optimizer
+        self.critic_optimizer.load_state_dict(checkpoint['critic_optimizer_state_dict']) # Restore critic optimizer
         print(f"Loaded MAPPO Agent {self.agent_id} model from {path}_mappo_agent_{self.agent_id}.pth")
 
 

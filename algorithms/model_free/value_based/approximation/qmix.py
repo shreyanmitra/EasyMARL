@@ -1,92 +1,258 @@
 """
-QMIX algorithm for multi-agent reinforcement learning.
+(C) Shreyan Mitra, based on starter code by Natasha Jaques
 
-QMIX uses individual Q-networks for each agent and a mixing network to combine
-them into a joint Q-value while maintaining the Individual-Global-Max (IGM) principle.
+QMIX Algorithm for Multi-Agent Reinforcement Learning
+
+QMIX is one of the most successful and widely-used MARL algorithms, particularly
+effective in cooperative multi-agent scenarios. It solves the challenging problem
+of credit assignment in multi-agent systems.
+
+Key Innovation - Individual-Global-Max (IGM) Principle:
+QMIX ensures that the optimal joint action (what's best for the team) corresponds
+to each agent taking their individually optimal action. This means:
+- Each agent can act independently using only local observations
+- The team's joint action is guaranteed to be optimal
+- No communication needed during execution (decentralized execution)
+
+How QMIX Works:
+1. Each agent has its own Q-network (estimates action values from local observations)
+2. A mixing network combines individual Q-values into a joint team Q-value
+3. The mixing network has only positive weights (ensures IGM principle)
+4. Training is centralized (uses global information) but execution is decentralized
+
+When to Use QMIX:
+✅ Cooperative tasks where agents work toward a common goal
+✅ Partial observability (agents can't see everything)
+✅ Need for decentralized execution (no communication during play)
+✅ Discrete action spaces
+
+Paper: "QMIX: Monotonic Value Function Factorisation for Deep Multi-Agent RL" (2018)
+Use Cases: StarCraft II micromanagement, traffic coordination, swarm robotics
+
+For MARL Beginners:
+QMIX is an excellent starting point for learning MARL. It's conceptually clear,
+theoretically grounded, and works well in practice. Start here before moving
+to more complex algorithms like MADDPG or MAPPO.
 """
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.optim import Adam
-import numpy as np
-from typing import Dict, List, Tuple, Any
-import copy
+# Import necessary libraries for deep learning and multi-agent systems
+import torch                    # PyTorch for neural networks
+import torch.nn as nn           # Neural network modules
+import torch.nn.functional as F # Activation functions and utilities
+from torch.optim import Adam    # Adam optimizer for gradient-based learning
+import numpy as np              # Numerical computations
+from typing import Dict, List, Tuple, Any  # Type hints for code clarity
+import copy                     # For creating deep copies of networks
 
+# Import base classes from our MARL framework
 from .base import MARLAgent, MARLAlgorithm, ReplayBuffer
 
 
 class QMIXAgent(MARLAgent):
     """
-    Individual Q-network agent for QMIX.
+    Individual Q-Learning Agent for QMIX Algorithm.
+    
+    Each agent in QMIX has its own Q-network that learns to estimate action values
+    based on its local observations. The key insight is that even though agents
+    act independently, their learning is coordinated through the QMIX mixing network.
+    
+    Key Properties:
+    - Local Observations: Only sees partial environment state
+    - Individual Q-Network: Learns Q(observation, action) for its own actions
+    - Epsilon-Greedy: Balances exploration vs exploitation
+    - No Individual Optimizer: Learning coordinated by QMIX algorithm
+    
+    For MARL Beginners:
+    Think of each agent as a team member who learns their individual role
+    while the coach (QMIX) ensures everyone works well together.
     """
     
     def __init__(self, agent_id: int, obs_space: Dict, action_space: int, config: Dict):
         """
-        Initialize the QMIX agent.
+        Initialize the QMIX agent with its individual Q-network.
         
         Args:
-            agent_id: Unique identifier for this agent
-            obs_space: Observation space specification
-            action_space: Number of available actions
-            config: Configuration dictionary containing hyperparameters
+            agent_id (int): Unique identifier for this agent (0, 1, 2, ...)
+            obs_space (Dict): Local observation space for this agent
+                             Example: {'image': (7, 7, 3), 'direction': 4}
+            action_space (int): Number of actions this agent can take
+                               Example: 6 for MultiGrid (move up, down, left, right, toggle, done)
+            config (Dict): Configuration containing hyperparameters
+                          Example: {'epsilon_start': 1.0, 'epsilon_decay': 0.995, ...}
+        
+        For Beginners:
+        This sets up one team member with their own "skill set" (Q-network)
+        and exploration strategy (epsilon-greedy).
         """
+        # Call parent class constructor to set up basic agent properties
         super().__init__(agent_id, obs_space, action_space, config)
         
-        # Q-learning hyperparameters
-        self.epsilon = config.get('epsilon_start', 1.0)
-        self.epsilon_end = config.get('epsilon_end', 0.05)
-        self.epsilon_decay = config.get('epsilon_decay', 0.995)
+        # Exploration Parameters for Epsilon-Greedy Action Selection
+        # Start with high exploration and gradually reduce it
+        self.epsilon = config.get('epsilon_start', 1.0)        # Current exploration rate (100% initially)
+        self.epsilon_end = config.get('epsilon_end', 0.05)     # Minimum exploration rate (5% final)
+        self.epsilon_decay = config.get('epsilon_decay', 0.995) # How fast to reduce exploration
         
-        # Networks
+        # Neural Networks for Q-Learning
+        # Main Q-network: learns Q-values from observations
         self.q_network = QNetwork(obs_space, action_space, config).to(self.device)
+        
+        # Target Q-network: stable version for computing target values
+        # Deep copy ensures completely independent parameters
         self.target_q_network = copy.deepcopy(self.q_network)
         
-        # No individual optimizer - QMIX uses centralized learning
+        # Note: QMIX uses centralized learning, so individual agents don't have optimizers
+        # The QMIX algorithm will handle all parameter updates centrally
         
-        print(f"Initialized QMIX Agent {agent_id} with {sum(p.numel() for p in self.q_network.parameters())} parameters")
+        print(f"Initialized QMIX Agent {agent_id}")
+        print(f"Q-network parameters: {sum(p.numel() for p in self.q_network.parameters())}")
+        print(f"Starting epsilon: {self.epsilon}")
     
     def get_action(self, observation: Dict, training: bool = True) -> int:
         """
-        Select an action using epsilon-greedy policy.
+        Select an action using epsilon-greedy policy based on Q-values.
+        
+        This is the core decision-making method for QMIX agents. It balances
+        exploration (trying new actions) with exploitation (using learned knowledge).
+        
+        Epsilon-Greedy Strategy:
+        - With probability epsilon: choose random action (exploration)
+        - With probability (1-epsilon): choose best action according to Q-network (exploitation)
         
         Args:
-            observation: Current observation from the environment
-            training: Whether the agent is in training mode
+            observation (Dict): Current local observation for this agent
+                               Example: {'image': grid_state, 'direction': facing_direction}
+            training (bool): Whether agent is in training mode
+                            True: Use exploration (epsilon-greedy)
+                            False: Always choose best action (greedy)
             
         Returns:
-            Selected action (integer)
+            int: Selected action ID (0 to action_space-1)
+                Example: 2 might represent "move left" in MultiGrid
+        
+        For MARL Beginners:
+        This is the agent's "decision-making brain". Early in training, it explores
+        randomly to discover what works. Later, it mostly uses what it has learned
+        but still explores occasionally to avoid getting stuck.
         """
+        # Check if we should explore (only during training)
         if training and np.random.random() < self.epsilon:
-            # Random action for exploration
-            return np.random.randint(0, self.action_space)
+            # Exploration: choose a random action to discover new strategies
+            action = np.random.randint(0, self.action_space)
+            return action
         else:
-            # Greedy action
-            with torch.no_grad():
+            # Exploitation: choose the best action according to learned Q-values
+            with torch.no_grad():  # Don't compute gradients for action selection (saves memory)
+                # Convert observation to tensor format for neural network
                 obs_tensor = self._process_observation(observation)
+                
+                # Get Q-values for all possible actions in this state
                 q_values = self.q_network(obs_tensor)
-                return q_values.argmax(dim=-1).item()
+                
+                # Choose action with highest Q-value (greedy action)
+                action = q_values.argmax(dim=-1).item()
+                return action
     
     def get_q_values(self, observation: Dict) -> torch.Tensor:
-        """Get Q-values for the given observation."""
+        """
+        Get Q-values for all actions given an observation.
+        
+        This method is used by the QMIX mixing network to get individual
+        Q-values that will be combined into joint Q-values.
+        
+        Args:
+            observation (Dict): Agent's local observation
+            
+        Returns:
+            torch.Tensor: Q-values for all actions [batch_size, num_actions]
+        
+        For Beginners:
+        This asks the agent "how good do you think each action is in this situation?"
+        The mixing network will use these individual opinions to make team decisions.
+        """
         obs_tensor = self._process_observation(observation)
         return self.q_network(obs_tensor)
     
     def get_target_q_values(self, observation: Dict) -> torch.Tensor:
-        """Get target Q-values for the given observation."""
+        """
+        Get target Q-values using the target network.
+        
+        Target networks provide stable target values for Q-learning updates.
+        They are periodically updated with the main network's parameters.
+        
+        Args:
+            observation (Dict): Agent's local observation
+            
+        Returns:
+            torch.Tensor: Target Q-values for all actions
+        
+        For Beginners:
+        This is like asking the agent's "previous version" what it thinks
+        about each action. Using an older version as reference helps
+        keep learning stable.
+        """
         obs_tensor = self._process_observation(observation)
         return self.target_q_network(obs_tensor)
     
+    def update_target_network(self):
+        """
+        Update target network by copying parameters from main network.
+        
+        This synchronizes the target network with the current main network,
+        providing updated but stable targets for Q-learning.
+        
+        For Beginners:
+        This is like updating your "reference book" with your current knowledge.
+        It happens periodically to keep the reference current but not too frequently
+        to maintain stability.
+        """
+        self.target_q_network.load_state_dict(self.q_network.state_dict())
+    
+    def decay_epsilon(self):
+        """
+        Decay the exploration rate (epsilon) over time.
+        
+        As the agent learns more, it should explore less and exploit more.
+        This gradually reduces random exploration in favor of learned behavior.
+        
+        For Beginners:
+        Think of this as becoming more confident over time. A beginner tries
+        many random things, but an expert mostly uses what they know works.
+        """
+        if self.epsilon > self.epsilon_end:
+            self.epsilon *= self.epsilon_decay
+    
     def _process_observation(self, observation: Dict) -> torch.Tensor:
-        """Convert observation to tensor format."""
+        """
+        Convert observation dictionary to tensor format for neural networks.
+        
+        Neural networks require numerical tensor inputs, so this method converts
+        the environment's observation format into what the network expects.
+        
+        Args:
+            observation (Dict): Raw observation from environment
+                               Can contain images, vectors, scalars, etc.
+            
+        Returns:
+            torch.Tensor: Processed observation ready for neural network
+        
+        For Beginners:
+        This is like translating the environment's "language" into the
+        neural network's "language". Different environments give observations
+        in different formats, but neural networks need consistent tensor input.
+        """
         if isinstance(observation, dict):
-            # Handle dictionary observations
+            # Handle dictionary observations (common in complex environments)
             obs_list = []
             for key, value in observation.items():
                 if isinstance(value, np.ndarray):
+                    # Convert numpy arrays to tensors and flatten
                     obs_list.append(torch.tensor(value, dtype=torch.float32).flatten())
                 else:
+                    # Convert scalars to single-element tensors
                     obs_list.append(torch.tensor([value], dtype=torch.float32))
+            
+            # Concatenate all observation components into single tensor
             obs_tensor = torch.cat(obs_list).unsqueeze(0).to(self.device)
         else:
             # Handle array observations

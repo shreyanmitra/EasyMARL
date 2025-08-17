@@ -1,53 +1,87 @@
 """
-Enhanced GUI for EasyMARL Framework
+(C) Shreyan Mitra, based on starter code by Natasha Jaques
 
-This file creates a professional web-based interface for training and evaluating
-multi-agent reinforcement learning algorithms. It provides real-time visualization,
-comprehensive algorithm descriptions, and interactive training controls.
+Enhanced Web-Based GUI for EasyMARL Framework
 
-Key Features:
-- Real-time training graphs that update every 2 seconds
-- 21+ MARL algorithms with detailed descriptions
-- WandB integration for experiment tracking
-- Environment visualization
-- Downloadable training data
-- Professional tabbed interface
+This module provides a professional, web-based graphical interface for training
+and evaluating multi-agent reinforcement learning algorithms. It makes MARL
+accessible to both beginners and researchers through an intuitive interface.
 
-Author: EasyMARL Team
-Date: 2025
+Key Features for Users:
+🎯 Point-and-Click Training: No command-line experience required
+📊 Real-Time Visualization: Live training graphs and performance metrics
+🧠 Algorithm Explorer: Detailed descriptions of 21+ MARL algorithms
+🎮 Environment Previews: Visual representations of training environments
+📈 Experiment Tracking: Integration with Weights & Biases
+💾 Data Export: Download training results and configurations
+🎛️ Dual Controllers: Choose between Simple (educational) and Modern (production)
+
+Interface Design:
+1. 📋 Algorithm Selection Tab: Choose and learn about algorithms
+2. ⚙️ Configuration Tab: Set training parameters and options
+3. 🚀 Training Tab: Start training and monitor progress
+4. 📊 Results Tab: Analyze performance and download data
+5. 🎥 Visualization Tab: Watch trained agents in action
+
+For MARL Beginners:
+This GUI removes all technical barriers to MARL experimentation. You can:
+- Learn about different algorithms through interactive descriptions
+- Train agents with just a few clicks
+- See real-time progress without reading logs
+- Understand what your agents learned through visualizations
+
+For MARL Researchers:
+This GUI provides a rapid prototyping environment where you can:
+- Quickly test different algorithm configurations
+- Compare multiple approaches side-by-side
+- Export results for publication
+- Share experiments with collaborators
+
+Technical Architecture:
+- Frontend: Gradio web interface (automatic responsive design)
+- Backend: Python with asyncio for concurrent training
+- Data Flow: WebSocket-like updates for real-time visualization
+- Integration: Seamless connection to EasyMARL training pipeline
+
+Usage:
+1. Run: python gui.py
+2. Open browser to displayed URL
+3. Select algorithm and configure parameters
+4. Click "Start Training" and watch real-time progress
+5. Evaluate and visualize results
 """
 
 # =============================================================================
-# IMPORTS: External libraries and internal modules
+# IMPORTS: External libraries and internal framework components
 # =============================================================================
 
-import gradio as gr          # Web-based GUI framework for machine learning
-import argparse             # Command-line argument parsing (legacy support)
-import random               # Random number generation for reproducibility
-import torch                # PyTorch for deep learning operations
-import numpy as np          # Numerical computations and array operations
-import wandb                # Weights & Biases for experiment tracking
-import yaml                 # YAML configuration file parsing
+import gradio as gr          # Modern web-based GUI framework for ML applications
+import argparse             # Command-line argument parsing for legacy compatibility
+import random               # Random number generation for reproducible experiments
+import torch                # PyTorch deep learning framework
+import numpy as np          # Numerical computing library
+import wandb                # Weights & Biases experiment tracking platform
+import yaml                 # YAML configuration file parser
 import os                   # Operating system interface for file operations
-import matplotlib.pyplot as plt  # Plotting library for training graphs
-import matplotlib           # Matplotlib configuration
-matplotlib.use('Agg')       # Use non-interactive backend for server environments
-from threading import Thread    # Multi-threading for background training
-import time                 # Time operations for timestamps and delays
+import matplotlib.pyplot as plt  # Plotting library for training visualizations
+import matplotlib           # Matplotlib configuration and backend settings
+matplotlib.use('Agg')       # Use non-interactive backend for server/headless environments
+from threading import Thread    # Multi-threading for concurrent training execution
+import time                 # Time utilities for timestamps and scheduling
 from typing import Dict, List, Tuple  # Type hints for better code documentation
-import json                 # JSON serialization for data export
+import json                 # JSON serialization for data export and configuration
 
-# Internal imports: EasyMARL framework components
-import utils                # Utility functions for environment creation
-from modern_multiagent_controller import ModernMultiAgentController  # Advanced training controller
-from simple_multiagent_controller import SimpleMultiAgentController  # Beginner-friendly training controller
+# EasyMARL Framework Components
+import utils                # Core utility functions (environment creation, config management)
+from modern_multiagent_controller import ModernMultiAgentController    # Production-ready training controller
+from simple_multiagent_controller import SimpleMultiAgentController    # Educational training controller
 
 # =============================================================================
-# GLOBAL CONFIGURATION: Available environments and algorithms
+# GLOBAL CONFIGURATION: Environment and Algorithm Specifications
 # =============================================================================
 
-# List of supported multi-agent environments
-# These are the environments that users can select in the GUI
+# Supported Multi-Agent Environments
+# These environments are available for training through the GUI interface
 AVAILABLE_ENVS = ["MultiGrid-Cluttered-Fixed-15x15"]
 
 # List of all 21+ available MARL algorithms

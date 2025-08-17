@@ -1,65 +1,170 @@
 """
-Algorithm factory for creating and managing MARL algorithms.
+Multi-Agent Reinforcement Learning Algorithm Library
 
-This module provides a unified interface for creating and configuring
-different multi-agent reinforcement learning algorithms.
+This package provides implementations of various multi-agent reinforcement learning
+algorithms, organized using a comprehensive taxonomy for easy understanding and use.
+
+Taxonomy Structure:
+📁 Model-Free (Learn directly from experience)
+  ├── 📁 Value-Based (Learn value functions)
+  │   ├── 📁 Approximation (Neural networks): QMIX, VDN, QTRAN, IQL, MFQ
+  │   └── 📁 Tabular (Lookup tables): Nash-Q, Minimax-Q, WoLF-PHC, HQL, LQL
+  ├── 📁 Policy-Based (Learn policies directly)
+  │   ├── 📁 Discrete Action: IPPO, MAPPO
+  │   └── 📁 Continuous Action: MADDPG, MADDPG-Comm
+  └── 📁 Actor-Critic (Combine value and policy): COMA, COMA-Comm, MAACC, MAVEN, DCG, NFSP
+
+📁 Model-Based (Use environment models)
+  ├── 📁 Given Model (Predefined dynamics): Future algorithms
+  └── 📁 Learned Model (Learn dynamics): Future algorithms
+
+Each algorithm follows the MARLAlgorithm base class interface for consistency.
 """
 
-from typing import Dict, Type
+from typing import Dict, Type, List
 import torch
 
+# Import base classes
 from .base import MARLAlgorithm
-from .ippo import IPPO
-from .maddpg import MADDPG
-from .qmix import QMIX
-from .mappo import MAPPO
-from .iql import IQL
-from .vdn import VDN
-from .coma import COMA
-from .qtran import QTRAN
-from .maven import MAVEN
-from .hql import HQL
-from .lql import LQL
-from .wolfphc import WoLFPHC
-from .nashq import NashQ
-from .dcg import DCG
-from .minimaxq import MinimaxQ
-from .maacc import MAACC
-from .nfsp import NFSP
-from .mfq import MFQ
-from .maddpgcomm import MADDPGComm
-from .comacomm import COMAComm
+from .taxonomy import taxonomy, AlgorithmCategory, ModelFreeCategory
+
+# Import all algorithms from their taxonomical locations
+from .model_free.value_based.approximation.qmix import QMIX
+from .model_free.value_based.approximation.vdn import VDN
+from .model_free.value_based.approximation.qtran import QTRAN
+from .model_free.value_based.approximation.iql import IQL
+from .model_free.value_based.approximation.mfq import MFQ
+
+from .model_free.value_based.tabular.nashq import NashQ
+from .model_free.value_based.tabular.minimaxq import MinimaxQ
+from .model_free.value_based.tabular.wolfphc import WoLFPHC
+from .model_free.value_based.tabular.hql import HQL
+from .model_free.value_based.tabular.lql import LQL
+
+from .model_free.policy_based.discrete_action.ippo import IPPO
+from .model_free.policy_based.discrete_action.mappo import MAPPO
+
+from .model_free.policy_based.continuous_action.maddpg import MADDPG
+from .model_free.policy_based.continuous_action.maddpgcomm import MADDPGComm
+
+from .model_free.actor_critic.coma import COMA
+from .model_free.actor_critic.comacomm import COMAComm
+from .model_free.actor_critic.maacc import MAACC
+from .model_free.actor_critic.maven import MAVEN
+from .model_free.actor_critic.dcg import DCG
+from .model_free.actor_critic.nfsp import NFSP
 
 
 class AlgorithmFactory:
     """
-    Factory class for creating MARL algorithms.
+    Taxonomy-aware factory class for creating MARL algorithms.
+    
+    This factory uses the comprehensive RL taxonomy to organize algorithms
+    and provide educational guidance on algorithm selection.
+    
+    Educational Features:
+    - Categorizes algorithms by their fundamental principles
+    - Provides learning progression recommendations
+    - Offers algorithm selection guidance based on requirements
+    
+    Research Features:
+    - Systematic comparison within categories
+    - Clear identification of algorithm relationships
+    - Structured evaluation framework
     """
     
-    # Registry of available algorithms
+    # Taxonomy-organized algorithm registry
     ALGORITHMS = {
-        'ippo': IPPO,
-        'maddpg': MADDPG,
+        # Value-Based Approximation
         'qmix': QMIX,
-        'mappo': MAPPO,
-        'iql': IQL,
         'vdn': VDN,
-        'coma': COMA,
         'qtran': QTRAN,
-        'maven': MAVEN,
+        'iql': IQL,
+        'mfq': MFQ,
+        
+        # Value-Based Tabular
+        'nashq': NashQ,
+        'minimaxq': MinimaxQ,
+        'wolfphc': WoLFPHC,
         'hql': HQL,
         'lql': LQL,
-        'wolfphc': WoLFPHC,
-        'nashq': NashQ,
-        'dcg': DCG,
-        'minimaxq': MinimaxQ,
-        'maacc': MAACC,
-        'nfsp': NFSP,
-        'mfq': MFQ,
+        
+        # Policy-Based Discrete Action
+        'ippo': IPPO,
+        'mappo': MAPPO,
+        
+        # Policy-Based Continuous Action
+        'maddpg': MADDPG,
         'maddpgcomm': MADDPGComm,
+        
+        # Actor-Critic
+        'coma': COMA,
         'comacomm': COMAComm,
-        'ppo': IPPO,  # Alias for backward compatibility
+        'maacc': MAACC,
+        'maven': MAVEN,
+        'dcg': DCG,
+        'nfsp': NFSP,
+        
+        # Backward compatibility aliases
+        'ppo': IPPO,
     }
+    
+    @classmethod
+    def get_algorithms_by_category(cls, category: str) -> Dict[str, Type[MARLAlgorithm]]:
+        """
+        Get algorithms organized by taxonomical category.
+        
+        Args:
+            category: Category name ('value_based', 'policy_based', 'actor_critic', etc.)
+            
+        Returns:
+            Dict mapping algorithm names to classes within the category
+        """
+        category_mapping = {
+            'value_based_approximation': ['qmix', 'vdn', 'qtran', 'iql', 'mfq'],
+            'value_based_tabular': ['nashq', 'minimaxq', 'wolfphc', 'hql', 'lql'],
+            'policy_based_discrete': ['ippo', 'mappo'],
+            'policy_based_continuous': ['maddpg', 'maddpgcomm'],
+            'actor_critic': ['coma', 'comacomm', 'maacc', 'maven', 'dcg', 'nfsp'],
+            
+            # Broader categories
+            'value_based': ['qmix', 'vdn', 'qtran', 'iql', 'mfq', 'nashq', 'minimaxq', 'wolfphc', 'hql', 'lql'],
+            'policy_based': ['ippo', 'mappo', 'maddpg', 'maddpgcomm'],
+            'beginner': ['vdn', 'ippo', 'nashq'],
+            'intermediate': ['qmix', 'mappo', 'coma'],
+            'advanced': ['qtran', 'maven', 'maacc'],
+            'cooperative': ['qmix', 'vdn', 'ippo', 'mappo', 'coma'],
+            'competitive': ['nashq', 'minimaxq', 'wolfphc', 'nfsp'],
+        }
+        
+        algorithm_names = category_mapping.get(category, [])
+        return {name: cls.ALGORITHMS[name] for name in algorithm_names if name in cls.ALGORITHMS}
+    
+    @classmethod
+    def get_recommended_algorithms(cls, **criteria) -> List[str]:
+        """
+        Get algorithm recommendations based on user criteria.
+        
+        Keyword Args:
+            environment_type: 'cooperative', 'competitive', 'mixed'
+            experience_level: 'beginner', 'intermediate', 'advanced'
+            action_space: 'discrete', 'continuous'
+            state_space: 'small', 'large'
+            
+        Returns:
+            List of recommended algorithm names
+        """
+        return taxonomy.get_algorithm_recommendations(**criteria)
+    
+    @classmethod
+    def get_learning_progression(cls) -> List[Dict]:
+        """Get educational learning progression through algorithms."""
+        return taxonomy.get_learning_progression()
+    
+    @classmethod
+    def get_algorithm_path(cls, algorithm_name: str) -> str:
+        """Get the taxonomical path for an algorithm."""
+        return taxonomy.get_algorithm_path(algorithm_name) or "Unknown"
     
     @classmethod
     def create_algorithm(cls, algorithm_name: str, env, config: Dict, device: torch.device) -> MARLAlgorithm:

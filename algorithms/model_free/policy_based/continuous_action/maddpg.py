@@ -1,52 +1,127 @@
 """
-Multi-Agent Deep Deterministic Policy Gradient (MADDPG) algorithm.
+(C) Shreyan Mitra, based on starter code by Natasha Jaques
 
-MADDPG is an off-policy multi-agent reinforcement learning algorithm that uses
-centralized training with decentralized execution. It extends DDPG to multi-agent
-environments by allowing each agent to access global information during training.
+Multi-Agent Deep Deterministic Policy Gradient (MADDPG) Algorithm
+
+MADDPG is a sophisticated multi-agent reinforcement learning algorithm that addresses
+one of the key challenges in MARL: how to train agents that can coordinate effectively
+while still being able to act independently during execution.
+
+Key Innovation - Centralized Training, Decentralized Execution (CTDE):
+- Training: Agents can see all other agents' observations and actions (centralized)
+- Execution: Each agent acts based only on its local observations (decentralized)
+- This gives the best of both worlds: coordination during learning, independence during deployment
+
+How MADDPG Works:
+1. Each agent has an actor network (policy) and a critic network (Q-function)
+2. Actor networks only see local observations (for decentralized execution)
+3. Critic networks see global information (all agents' observations and actions)
+4. Uses experience replay and target networks for stable learning
+5. Handles both continuous and discrete action spaces
+
+When to Use MADDPG:
+✅ Mixed cooperative-competitive environments
+✅ Need for sophisticated coordination
+✅ Continuous or discrete action spaces
+✅ When centralized training is possible but decentralized execution is required
+✅ Environments with partial observability
+
+Comparison with Other Algorithms:
+- vs IPPO: More coordination but more complex
+- vs QMIX: Works with continuous actions, handles mixed scenarios better
+- vs MAPPO: Off-policy (can reuse old data) vs on-policy
+
+For MARL Beginners:
+MADDPG is more advanced than IPPO or QMIX. Try those first, then come to MADDPG
+when you need more sophisticated coordination or mixed competitive-cooperative scenarios.
+
+Paper: "Multi-Agent Actor-Critic for Mixed Cooperative-Competitive Environments" (2017)
+Use Cases: Robotic coordination, autonomous vehicles, financial trading, competitive games
 """
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.optim import Adam
-import numpy as np
-from typing import Dict, List, Tuple, Any
-import copy
+# Import necessary libraries for deep learning and multi-agent systems
+import torch                    # PyTorch for neural networks
+import torch.nn as nn           # Neural network modules
+import torch.nn.functional as F # Activation functions and utilities
+from torch.optim import Adam    # Adam optimizer for gradient-based learning
+import numpy as np              # Numerical computations
+from typing import Dict, List, Tuple, Any  # Type hints for code clarity
+import copy                     # For creating deep copies of networks
 
+# Import base classes and network architectures from our MARL framework
 from .base import MARLAgent, MARLAlgorithm, ReplayBuffer
 from networks.multigrid_network import MultiGridNetwork
 
 
 class MADDPGAgent(MARLAgent):
     """
-    MADDPG agent implementation with actor-critic architecture.
+    Multi-Agent Deep Deterministic Policy Gradient Agent.
+    
+    This agent implements the MADDPG algorithm, which extends the single-agent DDPG
+    algorithm to multi-agent settings. The key insight is using centralized critics
+    that can see global information during training, while keeping actors decentralized.
+    
+    Architecture:
+    1. Actor Network: π(action|local_observation) - only sees local info
+    2. Critic Network: Q(global_state, all_actions) - sees everything during training
+    3. Target Networks: Stable versions of both networks for training stability
+    
+    Key Features:
+    - Centralized Training, Decentralized Execution (CTDE)
+    - Handles both discrete and continuous action spaces
+    - Uses experience replay for sample efficiency
+    - Soft target updates for training stability
+    
+    For MARL Beginners:
+    Think of this as having a coach (centralized critic) who can see the whole field
+    during practice, but players (decentralized actors) who can only see their local
+    area during the actual game.
     """
     
     def __init__(self, agent_id: int, obs_space: Dict, action_space: int, 
                  n_agents: int, config: Dict):
         """
-        Initialize the MADDPG agent.
+        Initialize the MADDPG agent with actor and critic networks.
         
         Args:
-            agent_id: Unique identifier for this agent
-            obs_space: Observation space specification
-            action_space: Number of available actions (discrete)
-            n_agents: Total number of agents in the environment
-            config: Configuration dictionary containing hyperparameters
+            agent_id (int): Unique identifier for this agent
+            obs_space (Dict): Local observation space for this agent
+                             Example: {'image': (7, 7, 3), 'direction': 4}
+            action_space (int): Number of actions this agent can take
+                               Example: 6 for discrete actions, or continuous dimension
+            n_agents (int): Total number of agents in the environment
+                           Needed for critic network that sees all agents
+            config (Dict): Configuration containing hyperparameters
+                          Example: {'gamma': 0.99, 'tau': 0.01, 'lr_actor': 1e-4, ...}
+        
+        For Beginners:
+        This sets up one agent with both local decision-making ability (actor)
+        and global situation awareness during training (critic).
         """
+        # Call parent class constructor to set up basic agent properties
         super().__init__(agent_id, obs_space, action_space, config)
         
+        # Store number of agents (needed for centralized critic)
         self.n_agents = n_agents
         
-        # MADDPG hyperparameters
+        # MADDPG Core Hyperparameters
+        # Discount factor: how much the agent values future rewards
         self.gamma = config.get('gamma', 0.99)
-        self.tau = config.get('tau', 0.01)  # Soft update parameter
-        self.exploration_noise = config.get('exploration_noise', 0.1)
-        self.lr_actor = config.get('lr_actor', 1e-4)
-        self.lr_critic = config.get('lr_critic', 1e-3)
         
-        # For discrete action spaces, we use Gumbel-Softmax
+        # Soft update parameter: how quickly to update target networks
+        # tau=0.01 means target = 0.99*old_target + 0.01*current_network
+        self.tau = config.get('tau', 0.01)
+        
+        # Exploration noise: random noise added to actions during training
+        # Helps agent explore different strategies
+        self.exploration_noise = config.get('exploration_noise', 0.1)
+        
+        # Learning rates: separate rates for actor and critic networks
+        self.lr_actor = config.get('lr_actor', 1e-4)    # Actor learns slower (more stable)
+        self.lr_critic = config.get('lr_critic', 1e-3)  # Critic learns faster
+        
+        # For discrete action spaces: use Gumbel-Softmax for differentiable sampling
+        # Temperature controls how "sharp" the probability distribution is
         self.temperature = config.get('temperature', 1.0)
         self.hard_gumbel = config.get('hard_gumbel', True)
         

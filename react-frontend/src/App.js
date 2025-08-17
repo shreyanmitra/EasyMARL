@@ -7,6 +7,7 @@ import TrainingPage from './pages/TrainingPage';
 import AlgorithmsPage from './pages/AlgorithmsPage';
 import EnvironmentsPage from './pages/EnvironmentsPage';
 import HelpPage from './pages/HelpPage';
+import TutorialPage from './pages/TutorialPage';
 import './App.css';
 
 /**
@@ -14,7 +15,8 @@ import './App.css';
  * 
  * This is the root component that sets up routing and global layout
  * for the EasyMARL web interface. It provides the same functionality
- * as the Python GUI but with modern React architecture.
+ * as the Python GUI but with modern React architecture and comprehensive
+ * educational features.
  */
 function App() {
   return (
@@ -28,6 +30,9 @@ function App() {
           <Routes>
             {/* Home Page - Welcome and Overview */}
             <Route path="/" element={<HomePage />} />
+            
+            {/* Tutorial Page - Comprehensive Learning Guide */}
+            <Route path="/tutorial" element={<TutorialPage />} />
             
             {/* Training Page - Start and Monitor Training */}
             <Route path="/training" element={<TrainingPage />} />

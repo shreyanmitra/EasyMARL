@@ -1,53 +1,95 @@
 """
-Enhanced Multi-Agent Controller - Structured for Beginner Understanding
+(C) Shreyan Mitra, based on starter code by Natasha Jaques
 
-This file provides a multi-agent controller that combines the simplicity and 
-structure of the original metacontroller with all the advanced functionality
-of the modern framework. It's designed to be easily understood by MARL beginners.
+Simple Multi-Agent Controller - Designed for MARL Beginners
 
-Key Design Principles:
-1. Simple, clear method names that explain what they do
-2. Extensive comments explaining each step
-3. Logical flow similar to the original metacontroller
-4. All advanced features preserved but made more accessible
+This controller provides a beginner-friendly interface to multi-agent reinforcement
+learning. It maintains the simplicity and clarity of educational code while providing
+access to all the advanced features of the EasyMARL framework.
 
-Author: EasyMARL Team
-Date: 2025
+Educational Design Principles:
+1. 📚 Simple, descriptive method names that explain their purpose
+2. 📝 Extensive comments explaining every step and concept
+3. 🔄 Clear, logical flow that matches how beginners think about RL
+4. 🎯 Focused on learning rather than optimization
+5. 🧩 Modular structure that's easy to understand and modify
+
+Key Features for Beginners:
+✅ Step-by-step episode execution with clear phases
+✅ Detailed logging to understand what's happening
+✅ Simple parameter tuning interface
+✅ Built-in visualization and analysis tools
+✅ Comprehensive error handling with helpful messages
+
+When to Use This Controller:
+👨‍🎓 Learning MARL for the first time
+👩‍🏫 Teaching MARL concepts
+🔬 Prototyping and experimentation
+📊 Research that needs clear, auditable code
+🐛 Debugging algorithm behavior
+
+Comparison with ModernMultiAgentController:
+- Simple: Optimized for understanding and learning
+- Modern: Optimized for performance and scalability
+- Both: Support all the same algorithms and features
+
+For MARL Beginners:
+Start here! This controller guides you through each step of multi-agent learning
+with clear explanations. Once you understand the concepts, you can graduate to
+the ModernMultiAgentController for production use.
+
+Workflow Overview:
+1. Initialize → Create agents and environment
+2. Train → Run episodes with clear learning phases
+3. Evaluate → Test performance with visualizations
+4. Analyze → Understand what the agents learned
 """
 
 # =============================================================================
 # IMPORTS: Required libraries and framework components
 # =============================================================================
 
-import torch                # PyTorch for deep learning
-import numpy as np          # Numerical computations
-import wandb                # Experiment tracking
-import os                   # File operations
-from typing import Dict, Any, Optional, List  # Type hints for clarity
+import torch                # PyTorch for deep learning and neural networks
+import numpy as np          # Numerical computations and array operations
+import wandb                # Weights & Biases for experiment tracking and visualization
+import os                   # Operating system interface for file operations
+from typing import Dict, Any, Optional, List  # Type hints for better code clarity and IDE support
 
-# Internal imports: EasyMARL framework components
-from algorithms import create_marl_algorithm, list_available_algorithms
-from utils import plot_single_frame, make_video
+# EasyMARL Framework Components
+from algorithms import create_marl_algorithm, list_available_algorithms  # Algorithm factory and registry
+from utils import plot_single_frame, make_video  # Visualization and video creation utilities
 
 
 # =============================================================================
-# MAIN CONTROLLER CLASS: Simple structure for beginners
+# MAIN CONTROLLER CLASS: Simple structure optimized for learning
 # =============================================================================
 
 class SimpleMultiAgentController:
     """
-    A simple, beginner-friendly multi-agent controller.
+    A Simple, Educational Multi-Agent Reinforcement Learning Controller.
     
-    This controller is structured similarly to the original metacontroller
-    but includes all the advanced features of the modern framework. It's
-    designed to be easy to understand for MARL beginners.
+    This controller is specifically designed for MARL beginners and educational use.
+    It provides a clear, step-by-step approach to multi-agent learning while
+    maintaining access to all the advanced features of the EasyMARL framework.
     
-    Key Methods:
-    - __init__(): Set up the controller and agents
-    - run_one_episode(): Run a single training episode
-    - train(): Run the complete training loop
-    - evaluate(): Test the trained agents
-    - save_models() / load_models(): Model persistence
+    Educational Structure:
+    1. 🚀 Initialization: Set up agents, environment, and learning system
+    2. 📚 Training Phase: Learn through repeated environment interaction
+    3. 🎯 Evaluation Phase: Test what the agents learned
+    4. 📊 Analysis Phase: Visualize and understand the results
+    
+    Key Methods (in order of typical use):
+    - __init__(): Set up the entire learning system
+    - train(): Run the complete training process
+    - run_one_episode(): Execute a single learning episode (called by train)
+    - evaluate(): Test the trained agents' performance
+    - visualize(): Create videos and plots of agent behavior
+    - save_models() / load_models(): Persist learned knowledge
+    
+    For Beginners:
+    Think of this as your "MARL tutorial" - it walks you through each step
+    of the learning process with clear explanations of what's happening and why.
+    """
     """
     
     def __init__(self, env, config: Dict, device: torch.device, 

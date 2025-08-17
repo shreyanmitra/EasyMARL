@@ -1,52 +1,135 @@
 """
-Modern Multi-Agent Controller using the new MARL algorithm framework.
+(C) Shreyan Mitra, based on starter code by Natasha Jaques
 
-This controller replaces the old multiagent_metacontroller.py with a cleaner,
-more modular design that supports multiple MARL algorithms.
+Modern Multi-Agent Controller for EasyMARL Framework
+
+This is the main orchestrator that manages multi-agent training and evaluation.
+It provides a clean, modular interface for working with different MARL algorithms
+and handles all the complex coordination between agents, environments, and logging.
+
+Key Responsibilities:
+1. Algorithm Management: Creates and manages MARL algorithm instances
+2. Training Coordination: Orchestrates the training loop across multiple agents
+3. Environment Interaction: Handles agent-environment interactions
+4. Data Collection: Manages experience collection and replay buffers
+5. Performance Tracking: Logs metrics and creates visualizations
+6. Model Persistence: Saves and loads trained models
+
+Features:
+✅ Supports 20+ MARL algorithms (IPPO, QMIX, MADDPG, MAPPO, etc.)
+✅ Automatic experiment tracking with Weights & Biases
+✅ Built-in evaluation and visualization
+✅ Modular design for easy algorithm swapping
+✅ Robust error handling and debugging support
+
+For MARL Beginners:
+Think of this as the "conductor" of an orchestra. While individual agents (musicians)
+have their own skills, the controller coordinates everything to create a harmonious
+performance. It handles all the complex logistics so you can focus on the algorithms.
+
+Architecture:
+- Controller ← Creates/Manages → Algorithm ← Contains → Agents
+- Controller ← Interacts → Environment
+- Controller ← Logs → Metrics & Visualizations
 """
 
-import torch
-import numpy as np
-import wandb
-import os
-from typing import Dict, Any, Optional
-from PIL import Image
+# Import necessary libraries
+import torch          # PyTorch for deep learning
+import numpy as np    # Numerical computations
+import wandb          # Weights & Biases for experiment tracking
+import os             # Operating system interface
+from typing import Dict, Any, Optional  # Type hints for better code clarity
+from PIL import Image # Python Imaging Library for image processing
 
-from algorithms import create_marl_algorithm, list_available_algorithms
-from utils import plot_single_frame, make_video
+# Import framework components
+from algorithms import create_marl_algorithm, list_available_algorithms  # Algorithm factory and registry
+from utils import plot_single_frame, make_video  # Visualization utilities
 
 
 class ModernMultiAgentController:
     """
-    Modern multi-agent controller with support for multiple MARL algorithms.
+    Modern Multi-Agent Reinforcement Learning Controller.
     
-    This controller manages the training and evaluation of multi-agent systems
-    using various reinforcement learning algorithms.
+    This class serves as the central coordinator for multi-agent training and evaluation.
+    It abstracts away the complexity of managing multiple agents, different algorithms,
+    and various training procedures behind a clean, easy-to-use interface.
+    
+    Key Design Principles:
+    1. Algorithm Agnostic: Works with any MARL algorithm that follows our interface
+    2. Environment Agnostic: Works with any multi-agent environment
+    3. Modular: Easy to extend and customize
+    4. Robust: Handles errors gracefully and provides helpful debugging
+    
+    Workflow:
+    1. Initialize with environment and configuration
+    2. Create specified MARL algorithm and agents
+    3. Run training loop with automatic logging
+    4. Evaluate performance and create visualizations
+    5. Save/load models for persistence
+    
+    For MARL Beginners:
+    This is your main interface to the framework. You specify what algorithm
+    you want to use and what environment to train on, and this controller
+    handles all the complex details.
     """
     
     def __init__(self, env, config: Dict, device: torch.device, 
                  algorithm: str = 'ippo', training: bool = True, debug: bool = False):
         """
-        Initialize the multi-agent controller.
+        Initialize the multi-agent controller with specified configuration.
+        
+        This sets up the entire multi-agent learning system: creates the algorithm,
+        initializes agents, sets up logging, and prepares for training or evaluation.
         
         Args:
-            env: Multi-agent environment
-            config: Configuration dictionary
-            device: PyTorch device
-            algorithm: Name of the MARL algorithm to use
-            training: Whether this is for training or evaluation
-            debug: Whether to enable debug mode
-        """
-        self.env = env
-        self.config = config
-        self.device = device
-        self.algorithm_name = algorithm.lower()
-        self.training = training
-        self.debug = debug
+            env: Multi-agent environment that follows Gym interface
+                 Must have attributes: n_agents, observation_space, action_space
+            config (Dict): Configuration dictionary containing hyperparameters
+                          Example: {'gamma': 0.99, 'lr': 3e-4, 'episodes': 10000, ...}
+            device (torch.device): Computing device (CPU or GPU)
+                                  Example: torch.device('cuda') or torch.device('cpu')
+            algorithm (str): Name of MARL algorithm to use
+                           Options: 'ippo', 'qmix', 'maddpg', 'mappo', etc.
+            training (bool): Whether this is for training (True) or evaluation (False)
+            debug (bool): Enable debug mode for additional logging and error checking
         
-        # Validate environment
+        For Beginners:
+        This is like setting up a classroom: you specify the teaching method (algorithm),
+        the students (agents), the subject (environment), and the learning materials (config).
+        """
+        # Store core components
+        self.env = env                    # Multi-agent environment
+        self.config = config              # Learning configuration
+        self.device = device              # Computing device (CPU/GPU)
+        self.algorithm_name = algorithm.lower()  # Normalize algorithm name
+        self.training = training          # Training vs evaluation mode
+        self.debug = debug               # Debug mode flag
+        
+        # Validate environment compatibility
         if not hasattr(env, 'n_agents'):
-            raise ValueError("Environment must have 'n_agents' attribute")
+            raise ValueError("Environment must have 'n_agents' attribute for multi-agent support")
+        
+        # Validate algorithm availability
+        available_algorithms = list_available_algorithms()
+        if self.algorithm_name not in available_algorithms:
+            raise ValueError(f"Algorithm '{algorithm}' not available. "
+                           f"Available algorithms: {available_algorithms}")
+        
+        print(f"Initializing ModernMultiAgentController")
+        print(f"Algorithm: {self.algorithm_name}")
+        print(f"Environment: {env.__class__.__name__} with {env.n_agents} agents")
+        print(f"Device: {device}")
+        print(f"Mode: {'Training' if training else 'Evaluation'}")
+        
+        # Initialize training metrics
+        self.episode_count = 0           # Number of episodes completed
+        self.total_steps = 0             # Total environment steps taken
+        self.best_performance = -float('inf')  # Best performance achieved
+        
+        # Initialize storage for visualization and analysis
+        self.episode_rewards = []        # Reward history for plotting
+        self.episode_lengths = []        # Episode length history
+        self.training_metrics = []       # Detailed training metrics
         
         self.n_agents = env.n_agents
         
