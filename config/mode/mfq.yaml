@@ -1,0 +1,44 @@
+# Mean Field Q-Learning (MFQ) Configuration
+# MFQ handles large-scale multi-agent systems through mean field approximations
+
+# Algorithm specific parameters
+algorithm:
+  name: "MFQ"
+  
+# Learning parameters
+learning_rate: 0.001
+gamma: 0.99
+batch_size: 32
+memory_size: 10000
+train_start: 1000
+update_interval: 1
+target_update_freq: 100
+
+# Network architecture
+hidden_dim: 256
+
+# Mean field parameters
+mean_field_dim: 4  # Should match action space
+alpha: 0.1  # Mean field update rate
+mf_history_length: 100
+
+# Exploration parameters
+epsilon_start: 1.0
+epsilon_end: 0.01
+epsilon_decay: 0.995
+
+# Training parameters
+max_episodes: 1000
+max_steps_per_episode: 100
+evaluation_interval: 50
+save_interval: 100
+
+# Environment parameters
+environment:
+  name: "MultiGrid-Cluttered-Fixed-15x15"
+  render: false
+
+# Logging
+use_wandb: false
+wandb_project: "easmarl_mfq"
+log_interval: 10

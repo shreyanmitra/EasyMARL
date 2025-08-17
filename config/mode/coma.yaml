@@ -1,0 +1,36 @@
+# Counterfactual Multi-Agent Policy Gradients (COMA) Configuration
+algorithm: "coma"
+
+# Training parameters
+max_episodes: 1000
+max_steps: 100
+eval_interval: 50
+log_interval: 10
+
+# COMA hyperparameters
+gamma: 0.99
+lambda_gae: 0.95
+rollout_length: 128
+critic_epochs: 5
+actor_epochs: 1
+
+# Learning rates
+lr_actor: 0.0003
+lr_critic: 0.001
+
+# Network architecture
+hidden_dim: 128
+activation: "relu"
+
+# Training configuration
+entropy_coef: 0.01
+max_grad_norm: 0.5
+
+# Environment configuration
+render: false
+save_model: true
+model_save_interval: 100
+
+# Logging
+use_wandb: false
+project_name: "EasyMARL-COMA"

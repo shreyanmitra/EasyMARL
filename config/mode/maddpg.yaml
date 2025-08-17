@@ -1,0 +1,25 @@
+mode: 'MADDPG'
+algorithm: 'maddpg'
+
+# MADDPG specific parameters
+gamma: 0.99
+tau: 0.01
+exploration_noise: 0.1
+temperature: 1.0
+hard_gumbel: true
+
+# Learning rates
+lr_actor: 1e-4
+lr_critic: 1e-3
+
+# Experience replay
+batch_size: 64
+buffer_size: 100000
+learning_starts: 1000
+
+# Update frequencies
+update_freq: 1
+target_update_freq: 1
+
+# Network architecture
+hidden_dim: 128

@@ -1,0 +1,31 @@
+mode: 'QMIX'
+algorithm: 'qmix'
+
+# Q-learning parameters
+gamma: 0.99
+epsilon_start: 1.0
+epsilon_end: 0.05
+epsilon_decay: 0.995
+
+# Experience replay
+batch_size: 32
+buffer_size: 50000
+learning_starts: 1000
+
+# Training schedule
+train_freq: 4
+target_update_freq: 200
+
+# Learning rate
+lr: 5e-4
+grad_norm_clip: 10.0
+
+# Mixing network
+mixing_embed_dim: 32
+hypernet_embed_dim: 64
+
+# Network architecture
+hidden_dim: 128
+
+# Episode handling
+max_episode_length: 100

@@ -1,0 +1,23 @@
+mode: 'MAPPO'
+algorithm: 'mappo'
+
+# PPO specific parameters
+gamma: 0.99
+lambda_gae: 0.95
+clip_epsilon: 0.2
+value_loss_coef: 0.5
+entropy_coef: 0.01
+max_grad_norm: 0.5
+ppo_epochs: 4
+mini_batch_size: 32
+rollout_length: 128
+
+# Learning rates
+lr_actor: 3e-4
+lr_critic: 1e-3
+
+# Multi-agent specific
+share_parameters: false
+
+# Network architecture
+hidden_dim: 128

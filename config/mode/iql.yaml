@@ -1,0 +1,35 @@
+# Independent Q-Learning (IQL) Configuration
+algorithm: "iql"
+
+# Training parameters
+max_episodes: 1000
+max_steps: 100
+eval_interval: 50
+log_interval: 10
+
+# IQL hyperparameters
+gamma: 0.99
+epsilon_start: 1.0
+epsilon_end: 0.01
+epsilon_decay: 0.995
+learning_rate: 0.001
+batch_size: 32
+memory_size: 10000
+target_update_freq: 100
+
+# Network architecture
+hidden_dim: 128
+activation: "relu"
+
+# Training configuration
+train_start: 1000
+update_interval: 1
+
+# Environment configuration
+render: false
+save_model: true
+model_save_interval: 100
+
+# Logging
+use_wandb: false
+project_name: "EasyMARL-IQL"

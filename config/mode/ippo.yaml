@@ -1,0 +1,24 @@
+mode: 'IPPO'
+algorithm: 'ippo'
+
+# PPO specific parameters
+gamma: 0.99
+lambda_gae: 0.95
+clip_epsilon: 0.2
+value_loss_coef: 0.5
+entropy_coef: 0.01
+max_grad_norm: 0.5
+ppo_epochs: 4
+mini_batch_size: 64
+rollout_length: 128
+
+# Learning rates
+lr: 3e-4
+lr_decay_steps: 1000
+lr_decay: 0.99
+
+# Network architecture
+hidden_dim: 128
+
+# Training schedule
+update_frequency: 128

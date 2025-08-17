@@ -56,7 +56,13 @@ def generate_parameters(mode, domain, debug=False, seed=None, with_expert=None, 
     # config parameters
     config_default = yaml.safe_load(open("config/default.yaml", "r"))
     config_domain = yaml.safe_load(open("config/domain/" + domain + ".yaml", "r"))
-    config_mode = yaml.safe_load(open("config/mode/" + mode + ".yaml", "r"))
+    
+    # Try to load mode-specific config, fallback to ppo if not found
+    try:
+        config_mode = yaml.safe_load(open("config/mode/" + mode + ".yaml", "r"))
+    except FileNotFoundError:
+        print(f"Warning: Config file for mode '{mode}' not found, using ppo.yaml")
+        config_mode = yaml.safe_load(open("config/mode/ppo.yaml", "r"))
 
     # override default random seed
     if seed:
@@ -76,8 +82,11 @@ def generate_parameters(mode, domain, debug=False, seed=None, with_expert=None, 
     else:
         wandb.init(project = wandb_project + '-' + domain, config=config)
 
-    path_configs = {'model_name': config.mode + "_seed_" + str(config.seed) + "_domain_" + config.domain + "_version_" + config.version,
-                    'load_model_path': config.load_model_start_path + "_seed_" + str(config.seed) + "_domain_" + config.domain + "_version_" + config.version,
+    # Get algorithm name from config, fallback to mode
+    algorithm_name = getattr(config, 'algorithm', mode)
+    
+    path_configs = {'model_name': algorithm_name + "_seed_" + str(config.seed) + "_domain_" + config.domain + "_version_" + config.version,
+                    'load_model_path': config.get('load_model_start_path', algorithm_name + "_agent_") + "_seed_" + str(config.seed) + "_domain_" + config.domain + "_version_" + config.version,
                     'wandb_project': wandb_project + '-' + config.domain}
     wandb.config.update(path_configs)
 

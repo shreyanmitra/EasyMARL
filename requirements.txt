@@ -1,13 +1,48 @@
-configparser==5.2.0
-ffmpeg==1.4
-gym==0.23.1
+# Core ML and RL libraries
+torch>=1.12.0
+torchvision>=0.13.0
+torchaudio>=0.12.0
+numpy>=1.21.6
+gym==0.21.0
+scipy>=1.9.0
+
+# Multi-agent environment
 gym-minigrid==1.0.3
-jupyter==1.0.0
-matplotlib==3.8.2
-moviepy==1.0.3
-numpy==1.21.6
-pandas==2.0.3
+
+# GUI and web interface
+gradio>=4.0.0
+
+# React backend API
+flask>=2.0.0
+flask-cors>=3.0.0
+
+# Data processing and visualization
+matplotlib>=3.8.2
 seaborn>=0.13.0
-setuptools==63.2.0
-torch==1.12.0
-wandb==0.12.21
+pandas>=2.0.3
+pillow>=9.0.0
+
+# Video generation
+moviepy>=1.0.3
+ffmpeg>=1.4
+
+# Experiment tracking
+wandb>=0.12.21
+
+# Configuration
+pyyaml>=6.0
+configparser>=5.2.0
+
+# Optimization (for game-theoretic algorithms)
+cvxpy>=1.2.0
+networkx>=2.6.0
+
+# Development tools
+jupyter>=1.0.0
+setuptools>=63.2.0
+gradio>=4.0.0
+
+# Additional utilities
+tqdm>=4.64.0
+scipy>=1.9.0
+tensorboard>=2.10.0

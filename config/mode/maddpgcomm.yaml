@@ -1,0 +1,44 @@
+# MADDPG with Communication Configuration
+# MADDPG-Comm extends MADDPG with explicit communication channels
+
+# Algorithm specific parameters
+algorithm:
+  name: "MADDPGComm"
+  
+# Learning parameters
+actor_lr: 0.0001
+critic_lr: 0.001
+gamma: 0.99
+tau: 0.01
+batch_size: 32
+memory_size: 10000
+train_start: 1000
+update_interval: 1
+
+# Network architecture
+hidden_dim: 256
+
+# Communication parameters
+communication_dim: 64
+communication_range: inf
+comm_history_length: 10
+
+# Exploration parameters
+noise_std: 0.2
+noise_clip: 0.5
+
+# Training parameters
+max_episodes: 1000
+max_steps_per_episode: 100
+evaluation_interval: 50
+save_interval: 100
+
+# Environment parameters
+environment:
+  name: "MultiGrid-Cluttered-Fixed-15x15"
+  render: false
+
+# Logging
+use_wandb: false
+wandb_project: "easmarl_maddpgcomm"
+log_interval: 10

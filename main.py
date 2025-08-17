@@ -5,16 +5,20 @@ import numpy as np
 import wandb
 
 import utils
-from multiagent_metacontroller import MultiAgent
+from modern_multiagent_controller import ModernMultiAgentController
+from algorithms import list_available_algorithms
 
 def parse_args():
-  parser = argparse.ArgumentParser()
+  parser = argparse.ArgumentParser(description='Multi-Agent Reinforcement Learning Framework')
   parser.add_argument(
       '--env_name', type=str, default='MultiGrid-Cluttered-Fixed-15x15',
       help='Name of environment.')
   parser.add_argument(
-      '--mode', type=str, default='ppo',
-      help="Name of experiment. Can be 'ppo'")
+      '--algorithm', type=str, default='ippo',
+      help="MARL algorithm to use. Options: ippo, maddpg, qmix, mappo")
+  parser.add_argument(
+      '--mode', type=str, default=None,
+      help="Deprecated: use --algorithm instead. For backward compatibility.")
   parser.add_argument(
       '--with_expert', type=str, default=None,
       help="Whether to train with an expert")
@@ -29,7 +33,10 @@ def parse_args():
       help="If used will continue training from previous checkpoint.")
   parser.add_argument(
       '--visualize', action=argparse.BooleanOptionalAction,
-      help="If used will disable wandb logging.")
+      help="If used will run evaluation with visualization.")
+  parser.add_argument(
+      '--evaluate', action=argparse.BooleanOptionalAction,
+      help="If used will run evaluation only.")
   parser.add_argument(
       '--video_dir', type=str, default='videos',
       help="Name of location to store videos.")
@@ -37,20 +44,33 @@ def parse_args():
       '--load_checkpoint_from',  type=str, default=None,
       help="Path to find model checkpoints to load")
   parser.add_argument(
-        '--wandb_project', type=str, default='MARL_PPO_Training',
-        help="Name of wandb project. Choose from 'multiagent_copying_ii' for 2 experts or 'multiagent_copying_1_expert_1_novice'. ")
+        '--wandb_project', type=str, default='MARL_Training',
+        help="Name of wandb project.")
+  parser.add_argument(
+        '--list_algorithms', action=argparse.BooleanOptionalAction,
+        help="List available algorithms and exit.")
 
   return parser.parse_args()
 
-def get_metacontroller_class(config):
-    return MultiAgent
+def get_controller_class(config):
+    return ModernMultiAgentController
 
-def initialize(mode, env_name, debug, visualize, seed, with_expert, wandb_project):
+def initialize(algorithm, env_name, debug, visualize, evaluate, seed, with_expert, wandb_project):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    # Handle backward compatibility
+    if algorithm is None:
+        algorithm = 'ippo'  # Default algorithm
+    
+    # Determine mode for config generation (backward compatibility)
+    mode = 'ppo' if algorithm in ['ippo', 'ppo'] else algorithm
+
     config = utils.generate_parameters(
-      mode=mode, domain=env_name, debug=(debug or visualize),
+      mode=mode, domain=env_name, debug=(debug or visualize or evaluate),
       seed=seed, with_expert=with_expert, wandb_project=wandb_project)
+
+    # Add algorithm name to config
+    config.algorithm = algorithm
 
     # Set seeds
     random.seed(config.seed)
@@ -59,43 +79,73 @@ def initialize(mode, env_name, debug, visualize, seed, with_expert, wandb_projec
 
     env = utils.make_env(config)
 
-    metacontroller_class = get_metacontroller_class(config)
+    controller_class = get_controller_class(config)
 
-    return device, config, env, metacontroller_class
+    return device, config, env, controller_class
 
 def main(args):
-    device, config, env, metacontroller_class = initialize(
-      args.mode, args.env_name, args.debug, args.visualize, args.seed, args.with_expert, args.wandb_project)
+    # Handle special commands
+    if args.list_algorithms:
+        list_available_algorithms()
+        return
+
+    # Handle backward compatibility
+    algorithm = args.algorithm
+    if args.mode and not algorithm:
+        algorithm = 'ippo' if args.mode.lower() == 'ppo' else args.mode.lower()
+    
+    device, config, env, controller_class = initialize(
+      algorithm, args.env_name, args.debug, args.visualize, args.evaluate, 
+      args.seed, args.with_expert, args.wandb_project)
 
     # Ensure if you're logging to wandb, it's to the right wandb
-    if not args.debug and not args.visualize:  # Real run that logs to wandb
+    if not args.debug and not args.visualize and not args.evaluate:  # Real run that logs to wandb
       if not args.wandb_project:
         print('ERROR: when logging to wandb, must specify a valid wandb project.')
         exit(1)
 
-      current_wandb_projects = ['MARL_PPO_Training']  # Add your wandb project here
-      if str(args.wandb_project) not in current_wandb_projects:
-          print('ERROR: wandb project not in current projects. '
-                'Change the project name or add your new project to the current projects in current_wandb_projects. '
-                'Current projects are:', current_wandb_projects)
-          exit(1)
+    # Create controller
+    training_mode = not (args.visualize or args.evaluate)
+    controller = controller_class(
+        env=env, 
+        config=config, 
+        device=device, 
+        algorithm=algorithm,
+        training=training_mode,
+        debug=args.debug
+    )
+
+    # Load models if specified
+    if args.load_checkpoint_from:
+        controller.load_models(args.load_checkpoint_from)
 
     if args.visualize:
-      agent = metacontroller_class(config, env, device, with_expert=args.with_expert, training=False)
-      agent.load_models(model_path=args.load_checkpoint_from)
-      agent.visualize(env, args.mode, args.video_dir)
+        print('Generating visualization...')
+        controller.visualize_episode(0)
+        print(f'A video of the trained policies being tested in the environment '
+              f'has been generated and is located in {args.video_dir}')
+        return
 
-      print('A video of the trained policies being tested in the environment'
-            'has been generated and is located in', config.load_model_path)
-      exit(0)
+    if args.evaluate:
+        print('Running evaluation...')
+        eval_metrics = controller.evaluate(num_episodes=20, render=False)
+        print('Evaluation Results:')
+        for key, value in eval_metrics.items():
+            print(f'  {key}: {value:.4f}')
+        return
 
     # Train Model
-    agent = metacontroller_class(config, env, device, with_expert=args.with_expert, debug=args.debug)
-
-    if args.keep_training:
-      agent.load_models(model_path=args.load_checkpoint_from)
-
-    agent.train(env)
+    print(f'Starting training with {algorithm.upper()} algorithm...')
+    controller.train(config.n_episodes)
+    
+    # Print final statistics
+    stats = controller.get_statistics()
+    print('\nTraining completed!')
+    print('Final Statistics:')
+    for key, value in stats.items():
+        print(f'  {key}: {value}')
 
 if __name__ == '__main__':
+    args = parse_args()
+    main(args)
     main(parse_args())

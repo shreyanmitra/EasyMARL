@@ -1,0 +1,46 @@
+# Neural Fictitious Self-Play (NFSP) Configuration
+# NFSP combines reinforcement learning with supervised learning for Nash equilibria
+
+# Algorithm specific parameters
+algorithm:
+  name: "NFSP"
+  
+# Learning parameters
+q_lr: 0.001
+strategy_lr: 0.001
+gamma: 0.99
+batch_size: 32
+train_start: 1000
+update_interval: 1
+target_update_freq: 1000
+strategy_update_freq: 128
+
+# Network architecture
+hidden_dim: 256
+
+# NFSP specific parameters
+eta: 0.1  # Probability of best response vs average strategy
+anticipatory_param: 0.1
+rl_memory_size: 100000
+sl_memory_size: 1000000
+
+# Exploration parameters
+epsilon_start: 0.06
+epsilon_end: 0.001
+epsilon_decay: 0.995
+
+# Training parameters
+max_episodes: 1000
+max_steps_per_episode: 100
+evaluation_interval: 50
+save_interval: 100
+
+# Environment parameters
+environment:
+  name: "MultiGrid-Cluttered-Fixed-15x15"
+  render: false
+
+# Logging
+use_wandb: false
+wandb_project: "easmarl_nfsp"
+log_interval: 10
