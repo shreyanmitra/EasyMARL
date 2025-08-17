@@ -12,23 +12,53 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+      
+    - name: Debug React frontend structure
+      run: |
+        echo "📁 Repository structure:"
+        ls -la
+        echo ""
+        echo "📁 React frontend directory:"
+        if [ -d "react-frontend" ]; then
+          ls -la react-frontend/
+          echo ""
+          if [ -f "react-frontend/package.json" ]; then
+            echo "📦 Package.json contents:"
+            cat react-frontend/package.json
+          else
+            echo "❌ package.json not found"
+          fi
+        else
+          echo "❌ react-frontend directory not found"
+          exit 1
+        fi
       
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: react-frontend/package-lock.json
+        
+    - name: Cache node modules
+      uses: actions/cache@v3
+      with:
+        path: react-frontend/node_modules
+        key: ${{ runner.os }}-node-${{ hashFiles('react-frontend/package.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
         
     - name: Create required public files
       run: |
         cd react-frontend
+        
+        # Ensure public directory exists
         mkdir -p public
         cd public
         
-        # Create index.html
-        cat > index.html << 'EOF'
+        # Create index.html if it doesn't exist
+        if [ ! -f "index.html" ]; then
+          echo "Creating index.html..."
+          cat > index.html << 'EOF'
         <!DOCTYPE html>
         <html lang="en">
           <head>
@@ -46,9 +76,12 @@ jobs:
           </body>
         </html>
         EOF
+        fi
         
-        # Create manifest.json
-        cat > manifest.json << 'EOF'
+        # Create manifest.json if it doesn't exist
+        if [ ! -f "manifest.json" ]; then
+          echo "Creating manifest.json..."
+          cat > manifest.json << 'EOF'
         {
           "short_name": "EasyMARL",
           "name": "EasyMARL Research Platform",
@@ -58,19 +91,67 @@ jobs:
           "background_color": "#ffffff"
         }
         EOF
+        fi
         
-        # Create a simple text-based favicon
-        echo "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>" > favicon.ico
+        # Create favicon.ico if it doesn't exist
+        if [ ! -f "favicon.ico" ]; then
+          echo "Creating favicon.ico..."
+          # Create a simple SVG favicon
+          cat > favicon.ico << 'EOF'
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+          <rect width="100" height="100" fill="#667eea"/>
+          <text x="50" y="65" font-size="60" text-anchor="middle" fill="white">E</text>
+        </svg>
+        EOF
+        fi
+        
+        echo "✅ Public files created/verified:"
+        ls -la
         
     - name: Install dependencies
       run: |
         cd react-frontend
-        npm ci || npm install
+        
+        echo "📦 Installing dependencies..."
+        
+        # Install dependencies using npm install (since package-lock.json doesn't exist)
+        npm install
+        
+        # Install gh-pages if not already present (needed for npm run deploy)
+        if ! npm list gh-pages --depth=0 > /dev/null 2>&1; then
+          echo "📦 Installing gh-pages..."
+          npm install --save-dev gh-pages
+        fi
+        
+        echo "✅ Dependencies installed"
+        echo "📋 Installed packages:"
+        npm list --depth=0
         
     - name: Build React app
       run: |
         cd react-frontend
-        CI=false npm run build
+        # Set environment variables for build
+        export CI=false
+        export GENERATE_SOURCEMAP=false
+        export DISABLE_ESLINT_PLUGIN=true
+        
+        # Run the build
+        npm run build
+        
+        # Verify build was successful
+        if [ ! -d "build" ]; then
+          echo "❌ Build directory not created"
+          exit 1
+        fi
+        
+        if [ ! -f "build/index.html" ]; then
+          echo "❌ index.html not found in build"
+          exit 1
+        fi
+        
+        echo "✅ React build successful"
+        echo "Build contents:"
+        ls -la build/
         
     - name: Deploy to GitHub Pages
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
