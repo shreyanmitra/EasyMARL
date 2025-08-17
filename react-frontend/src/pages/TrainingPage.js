@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { PlayIcon, StopIcon, DownloadIcon } from '@heroicons/react/24/outline';
+import { PlayIcon, StopIcon, DownloadIcon } from '@heroicons/react/outline';
 import toast from 'react-hot-toast';
 import TrainingChart from '../components/TrainingChart';
 import EnvironmentVisualizer from '../components/EnvironmentVisualizer';

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { PlayIcon, HandRaisedIcon, ArrowUpIcon, ArrowDownIcon, ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { PlayIcon, StopIcon, ArrowUpIcon, ArrowDownIcon, ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/outline';
 import toast from 'react-hot-toast';
 
 /**
@@ -250,7 +250,7 @@ const ManualControl = () => {
                         : 'bg-green-600 hover:bg-green-700 text-white'
                     }`}
                   >
-                    <HandRaisedIcon className="w-5 h-5" />
+                    <StopIcon className="w-5 h-5" />
                     {isControlActive ? 'Stop Control' : 'Start Control'}
                   </button>
 
