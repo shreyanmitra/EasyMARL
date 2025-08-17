@@ -627,18 +627,24 @@ class ReplayBuffer:
 # Utility Functions for MARL Algorithms
 
 def compute_gae(rewards: np.ndarray, values: np.ndarray, next_values: np.ndarray, 
-                dones: np.ndarray, gamma: float = 0.99, gae_lambda: float = 0.95) -> np.ndarray:
+                terminated: np.ndarray, truncated: np.ndarray = None, 
+                gamma: float = 0.99, gae_lambda: float = 0.95) -> np.ndarray:
     """
     Compute Generalized Advantage Estimation (GAE) for policy gradient methods.
     
     GAE is a technique to estimate how much better an action was compared to
     the average action in that state. It's used in algorithms like PPO and A3C.
     
+    IMPORTANT: This function now properly handles the new Gymnasium API's distinction
+    between terminated (natural episode end) and truncated (time limit) episodes.
+    For correct value bootstrapping, we only stop bootstrapping on terminated episodes.
+    
     Args:
         rewards (np.ndarray): Rewards received at each step
         values (np.ndarray): Value estimates for each state
         next_values (np.ndarray): Value estimates for next states
-        dones (np.ndarray): Whether episodes ended at each step
+        terminated (np.ndarray): Whether episodes ended naturally
+        truncated (np.ndarray): Whether episodes were truncated (time limit)
         gamma (float): Discount factor for future rewards
         gae_lambda (float): GAE smoothing parameter
         
@@ -647,10 +653,14 @@ def compute_gae(rewards: np.ndarray, values: np.ndarray, next_values: np.ndarray
     
     For MARL Beginners:
     This is an advanced concept - it estimates "how good was this action
-    compared to what I usually do in this situation?" Don't worry about
-    the math details initially; just know it helps policy gradient methods
-    learn more effectively.
+    compared to what I usually do in this situation?" The key insight is
+    that we should continue estimating value from truncated episodes but
+    not from naturally terminated ones.
     """
+    # Handle backward compatibility
+    if truncated is None:
+        truncated = np.zeros_like(terminated)
+    
     advantages = np.zeros_like(rewards)
     advantage = 0
     
@@ -661,11 +671,12 @@ def compute_gae(rewards: np.ndarray, values: np.ndarray, next_values: np.ndarray
         else:
             next_value = values[t + 1]
         
-        # Temporal difference error
-        delta = rewards[t] + gamma * next_value * (1 - dones[t]) - values[t]
+        # Temporal difference error - only bootstrap if not terminated
+        # (truncated episodes should still bootstrap from next value)
+        delta = rewards[t] + gamma * next_value * (1 - terminated[t]) - values[t]
         
-        # GAE advantage
-        advantage = delta + gamma * gae_lambda * (1 - dones[t]) * advantage
+        # GAE advantage - same rule applies
+        advantage = delta + gamma * gae_lambda * (1 - terminated[t]) * advantage
         advantages[t] = advantage
     
     return advantages
@@ -725,23 +736,30 @@ def soft_update(target_network: nn.Module, source_network: nn.Module, tau: float
         return self.size
 
 
-def compute_gae(rewards, values, next_values, dones, gamma: float = 0.99, lambda_: float = 0.95):
+def compute_gae(rewards, values, next_values, terminated, truncated=None, gamma: float = 0.99, lambda_: float = 0.95):
     """
-    Compute Generalized Advantage Estimation (GAE).
+    Compute Generalized Advantage Estimation (GAE) with proper Gymnasium API support.
     
     Args:
         rewards: Tensor of rewards [T, N]
         values: Tensor of value estimates [T, N]
         next_values: Tensor of next value estimates [T, N]
-        dones: Tensor of done flags [T, N]
+        terminated: Tensor of terminated flags [T, N] (natural episode end)
+        truncated: Tensor of truncated flags [T, N] (time limit) - optional for backward compatibility
         gamma: Discount factor
         lambda_: GAE lambda parameter
         
     Returns:
         Tensor of GAE advantages [T, N]
+        
+    Note: Only bootstrap on truncated episodes, not terminated ones.
     """
     if not TORCH_AVAILABLE:
         return np.zeros_like(rewards)
+    
+    # Handle backward compatibility
+    if truncated is None:
+        truncated = torch.zeros_like(terminated)
     
     advantages = torch.zeros_like(rewards)
     last_advantage = 0
@@ -752,34 +770,43 @@ def compute_gae(rewards, values, next_values, dones, gamma: float = 0.99, lambda
         else:
             next_value = values[t + 1]
         
-        delta = rewards[t] + gamma * next_value * (1 - dones[t]) - values[t]
-        advantages[t] = delta + gamma * lambda_ * (1 - dones[t]) * last_advantage
+        # Only bootstrap if episode was not terminated (natural end)
+        delta = rewards[t] + gamma * next_value * (1 - terminated[t]) - values[t]
+        advantages[t] = delta + gamma * lambda_ * (1 - terminated[t]) * last_advantage
         last_advantage = advantages[t]
     
     return advantages
 
 
-def compute_returns(rewards, values, dones, gamma: float = 0.99):
+def compute_returns(rewards, values, terminated, truncated=None, gamma: float = 0.99):
     """
-    Compute discounted returns.
+    Compute discounted returns with proper Gymnasium API support.
     
     Args:
         rewards: Tensor of rewards [T, N]
         values: Tensor of value estimates [T, N] 
-        dones: Tensor of done flags [T, N]
+        terminated: Tensor of terminated flags [T, N] (natural episode end)
+        truncated: Tensor of truncated flags [T, N] (time limit) - optional for backward compatibility
         gamma: Discount factor
         
     Returns:
         Tensor of returns [T, N]
+        
+    Note: Only bootstrap on truncated episodes, not terminated ones.
     """
     if not TORCH_AVAILABLE:
         return np.zeros_like(rewards)
+    
+    # Handle backward compatibility
+    if truncated is None:
+        truncated = torch.zeros_like(terminated)
     
     returns = torch.zeros_like(rewards)
     next_return = values[-1]  # Bootstrap from last value
     
     for t in reversed(range(len(rewards))):
-        returns[t] = rewards[t] + gamma * next_return * (1 - dones[t])
+        # Only bootstrap if episode was not terminated (natural end)
+        returns[t] = rewards[t] + gamma * next_return * (1 - terminated[t])
         next_return = returns[t]
     
     return returns

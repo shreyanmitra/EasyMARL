@@ -429,7 +429,14 @@ class COMA(MARLAlgorithm):
     
     def _get_obs_space(self) -> Dict:
         """Get observation space specification."""
-        sample_obs = self.env.reset()
+        reset_result = self.env.reset()
+        if isinstance(reset_result, tuple) and len(reset_result) == 2:
+            # New API: (obs, info)
+            sample_obs, _ = reset_result
+        else:
+            # Old API: just obs
+            sample_obs = reset_result
+            
         obs_space = {}
         
         if isinstance(sample_obs, dict):
@@ -493,7 +500,16 @@ class COMA(MARLAlgorithm):
     
     def collect_rollout(self, env) -> Dict:
         """Collect rollout for COMA training."""
-        obs = env.reset()
+        # Reset environment with new API
+        reset_result = env.reset()
+        if isinstance(reset_result, tuple) and len(reset_result) == 2:
+            # New API: (obs, info)
+            obs, info = reset_result
+        else:
+            # Old API: just obs
+            obs = reset_result
+            info = {}
+            
         done = False
         step_count = 0
         
@@ -504,7 +520,9 @@ class COMA(MARLAlgorithm):
             'actions': [[] for _ in range(self.n_agents)],
             'action_probs': [[] for _ in range(self.n_agents)],
             'rewards': [[] for _ in range(self.n_agents)],
-            'dones': [[] for _ in range(self.n_agents)]
+            'dones': [[] for _ in range(self.n_agents)],
+            'terminated': [[] for _ in range(self.n_agents)],
+            'truncated': [[] for _ in range(self.n_agents)]
         }
         
         while not done and step_count < self.rollout_length:
@@ -532,17 +550,34 @@ class COMA(MARLAlgorithm):
                 episode_data['action_probs'][i].append(probs)
             
             # Take environment step
-            next_obs, rewards, done, info = env.step(actions)
+            step_result = env.step(actions)
             
-            # Store rewards and dones
+            # Handle both old and new API formats
+            if len(step_result) == 4:
+                # Old API: (obs, reward, done, info)
+                next_obs, rewards, done, info = step_result
+                terminated = done
+                truncated = False
+            elif len(step_result) == 5:
+                # New API: (obs, reward, terminated, truncated, info)
+                next_obs, rewards, terminated, truncated, info = step_result
+                done = terminated or truncated
+            else:
+                raise ValueError(f"Unexpected step return format: {len(step_result)} values")
+            
+            # Store rewards, terminated, and truncated flags
             if isinstance(rewards, list):
                 for i in range(self.n_agents):
                     episode_data['rewards'][i].append(rewards[i])
                     episode_data['dones'][i].append(done)
+                    episode_data['terminated'][i].append(terminated)
+                    episode_data['truncated'][i].append(truncated)
             else:
                 for i in range(self.n_agents):
                     episode_data['rewards'][i].append(rewards)
                     episode_data['dones'][i].append(done)
+                    episode_data['terminated'][i].append(terminated)
+                    episode_data['truncated'][i].append(truncated)
             
             obs = next_obs
             step_count += 1

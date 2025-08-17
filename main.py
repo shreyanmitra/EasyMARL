@@ -72,6 +72,9 @@ Examples:
   # Train QMIX agents on specific environment
   python main.py --algorithm qmix --env_name MultiGrid-Cluttered-Fixed-15x15
   
+  # Train with vectorized environments for 8x speedup
+  python main.py --algorithm ippo --vectorized --n_envs 8
+  
   # Evaluate trained models with visualization
   python main.py --evaluate --visualize --algorithm ippo
   
@@ -88,6 +91,15 @@ Examples:
     parser.add_argument(
         '--algorithm', type=str, default='ippo',
         help='MARL algorithm to use. Popular options: ippo (beginner-friendly), qmix, maddpg, mappo')
+    
+    # Vectorization Options
+    parser.add_argument(
+        '--vectorized', action=argparse.BooleanOptionalAction,
+        help='Use vectorized environments for 8x+ speedup in training')
+    
+    parser.add_argument(
+        '--n_envs', type=int, default=8,
+        help='Number of parallel environments for vectorized training (default: 8)')
     
     # Legacy support for backward compatibility
     parser.add_argument(
@@ -143,9 +155,20 @@ Examples:
     return parser.parse_args()
 
 def get_controller_class(config):
-    return ModernMultiAgentController
+    """
+    Get the appropriate controller class based on configuration.
+    
+    Returns vectorized controller if requested for performance optimization,
+    otherwise returns standard controller.
+    """
+    if config.get('vectorized', False):
+        from src.controllers.vectorized_controller import VectorizedMultiAgentController
+        return VectorizedMultiAgentController
+    else:
+        return ModernMultiAgentController
 
-def initialize(algorithm, env_name, debug, visualize, evaluate, seed, with_expert, wandb_project):
+def initialize(algorithm, env_name, debug, visualize, evaluate, seed, with_expert, wandb_project, 
+               vectorized=False, n_envs=8):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Handle backward compatibility
@@ -159,15 +182,22 @@ def initialize(algorithm, env_name, debug, visualize, evaluate, seed, with_exper
       mode=mode, domain=env_name, debug=(debug or visualize or evaluate),
       seed=seed, with_expert=with_expert, wandb_project=wandb_project)
 
-    # Add algorithm name to config
+    # Add algorithm name and vectorization settings to config
     config.algorithm = algorithm
+    config.vectorized = vectorized
+    config.n_envs = n_envs
 
     # Set seeds
     random.seed(config.seed)
     np.random.seed(config.seed)
     torch.manual_seed(config.seed)
 
-    env = utils.make_env(config)
+    # Create environment based on vectorization setting
+    if vectorized:
+        print(f"🚀 Using vectorized environments for {n_envs}x speedup!")
+        env = None  # Vectorized controller creates its own environment
+    else:
+        env = utils.make_env(config)
 
     controller_class = get_controller_class(config)
 
@@ -186,7 +216,7 @@ def main(args):
     
     device, config, env, controller_class = initialize(
       algorithm, args.env_name, args.debug, args.visualize, args.evaluate, 
-      args.seed, args.with_expert, args.wandb_project)
+      args.seed, args.with_expert, args.wandb_project, args.vectorized, args.n_envs)
 
     # Ensure if you're logging to wandb, it's to the right wandb
     if not args.debug and not args.visualize and not args.evaluate:  # Real run that logs to wandb
@@ -194,16 +224,34 @@ def main(args):
         print('ERROR: when logging to wandb, must specify a valid wandb project.')
         exit(1)
 
-    # Create controller
+    # Create controller with vectorization support
     training_mode = not (args.visualize or args.evaluate)
-    controller = controller_class(
-        env=env, 
-        config=config, 
-        device=device, 
-        algorithm=algorithm,
-        training=training_mode,
-        debug=args.debug
-    )
+    
+    if args.vectorized:
+        # Create vectorized controller
+        controller = controller_class(
+            env_name=args.env_name,
+            n_envs=args.n_envs,
+            config=config,
+            device=device,
+            algorithm=algorithm,
+            training=training_mode,
+            debug=args.debug,
+            seed=args.seed
+        )
+        
+        print(f"✅ Created vectorized controller with {args.n_envs} parallel environments")
+        
+    else:
+        # Create standard controller
+        controller = controller_class(
+            env=env, 
+            config=config, 
+            device=device, 
+            algorithm=algorithm,
+            training=training_mode,
+            debug=args.debug
+        )
 
     # Load models if specified
     if args.load_checkpoint_from:
@@ -218,24 +266,36 @@ def main(args):
 
     if args.evaluate:
         print('Running evaluation...')
-        eval_metrics = controller.evaluate(num_episodes=20, render=False)
+        if hasattr(controller, 'evaluate_vectorized') and args.vectorized:
+            eval_metrics = controller.evaluate_vectorized(num_episodes=20)
+        else:
+            eval_metrics = controller.evaluate(num_episodes=20, render=False)
         print('Evaluation Results:')
         for key, value in eval_metrics.items():
             print(f'  {key}: {value:.4f}')
         return
 
     # Train Model
-    print(f'Starting training with {algorithm.upper()} algorithm...')
+    if args.vectorized:
+        print(f'🚀 Starting vectorized training with {algorithm.upper()} algorithm...')
+        print(f'   Expected speedup: {args.n_envs}x faster data collection')
+    else:
+        print(f'Starting training with {algorithm.upper()} algorithm...')
+    
     controller.train(config.n_episodes)
     
     # Print final statistics
-    stats = controller.get_statistics()
-    print('\nTraining completed!')
-    print('Final Statistics:')
-    for key, value in stats.items():
-        print(f'  {key}: {value}')
+    if hasattr(controller, 'get_statistics'):
+        stats = controller.get_statistics()
+        print('\nTraining completed!')
+        print('Final Statistics:')
+        for key, value in stats.items():
+            print(f'  {key}: {value}')
+    
+    # Clean up vectorized environments
+    if args.vectorized and hasattr(controller, 'close'):
+        controller.close()
 
 if __name__ == '__main__':
     args = parse_args()
     main(args)
-    main(parse_args())

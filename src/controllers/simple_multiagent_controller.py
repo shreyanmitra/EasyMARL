@@ -59,6 +59,19 @@ from typing import Dict, Any, Optional, List  # Type hints for better code clari
 from algorithms import create_marl_algorithm, list_available_algorithms  # Algorithm factory and registry
 from utils import plot_single_frame, make_video  # Visualization and video creation utilities
 
+# Enhanced features (optional - graceful fallback if not available)
+try:
+    from utils import (
+        ENHANCED_FEATURES_AVAILABLE, ADVANCED_FEATURES_AVAILABLE,
+        make_production_vec_env, setup_world_class_training
+    )
+except ImportError:
+    # Fallback for systems without enhanced features
+    ENHANCED_FEATURES_AVAILABLE = False
+    ADVANCED_FEATURES_AVAILABLE = False
+    make_production_vec_env = None
+    setup_world_class_training = None
+
 
 # =============================================================================
 # MAIN CONTROLLER CLASS: Simple structure optimized for learning
@@ -94,7 +107,7 @@ class SimpleMultiAgentController:
     
     def __init__(self, env, config: Dict, device: torch.device, 
                  algorithm: str = 'ippo', training: bool = True, 
-                 debug: bool = False):
+                 debug: bool = False, use_enhanced_features: bool = False):
         """
         Initialize the multi-agent controller.
         
@@ -108,6 +121,7 @@ class SimpleMultiAgentController:
             algorithm: Name of MARL algorithm to use (e.g., 'qmix', 'ippo')
             training: Whether this is for training or evaluation
             debug: Whether to enable debug mode with extra logging
+            use_enhanced_features: Whether to enable enhanced world-class features
         """
         # Store basic configuration - similar to original metacontroller
         self.env = env                    # Environment for training
@@ -116,6 +130,21 @@ class SimpleMultiAgentController:
         self.algorithm_name = algorithm.lower()  # Name of selected algorithm
         self.training = training          # Training vs evaluation mode
         self.debug = debug               # Debug mode flag
+        
+        # Enhanced features support
+        self.use_enhanced_features = use_enhanced_features and ENHANCED_FEATURES_AVAILABLE
+        if use_enhanced_features and not ENHANCED_FEATURES_AVAILABLE:
+            print("Warning: Enhanced features requested but not available. Using standard features.")
+        
+        # Setup enhanced features if available and requested
+        if self.use_enhanced_features:
+            try:
+                print("Setting up enhanced world-class training features...")
+                setup_world_class_training()
+                print("✅ Enhanced features activated")
+            except Exception as e:
+                print(f"Warning: Could not setup enhanced features: {e}")
+                self.use_enhanced_features = False
         
         # Validate environment - ensure it has required attributes
         if not hasattr(env, 'n_agents'):

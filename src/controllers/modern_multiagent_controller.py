@@ -43,7 +43,12 @@ from PIL import Image # Python Imaging Library for image processing
 
 # Import framework components
 from algorithms import create_marl_algorithm, list_available_algorithms  # Algorithm factory and registry
-from utils import plot_single_frame, make_video  # Visualization utilities
+from utils import (
+    plot_single_frame, make_video,  # Visualization utilities
+    # Enhanced features
+    create_experiment_manager, create_performance_monitor, create_curriculum_manager,
+    ENHANCED_FEATURES_AVAILABLE, ADVANCED_FEATURES_AVAILABLE
+)
 from research_interface import get_research_interface, ExperimentConfig  # Research features
 
 
@@ -75,7 +80,12 @@ class ModernMultiAgentController:
     """
     
     def __init__(self, env, config: Dict, device: torch.device, 
-                 algorithm: str = 'ippo', training: bool = True, debug: bool = False):
+                 algorithm: str = 'ippo', training: bool = True, debug: bool = False,
+                 # 🚀 Enhanced experiment management options
+                 experiment_name: str = None,
+                 enable_advanced_tracking: bool = True,
+                 enable_performance_monitoring: bool = True,
+                 enable_curriculum_learning: bool = False):
         """
         Initialize the multi-agent controller with specified configuration.
         
@@ -106,6 +116,17 @@ class ModernMultiAgentController:
         self.training = training          # Training vs evaluation mode
         self.debug = debug               # Debug mode flag
         
+        # 🚀 Enhanced features configuration
+        self.experiment_name = experiment_name
+        self.enable_advanced_tracking = enable_advanced_tracking
+        self.enable_performance_monitoring = enable_performance_monitoring
+        self.enable_curriculum_learning = enable_curriculum_learning
+        
+        # Initialize enhanced components
+        self.experiment_manager = None
+        self.performance_monitor = None
+        self.curriculum_manager = None
+        
         # Validate environment compatibility
         if not hasattr(env, 'n_agents'):
             raise ValueError("Environment must have 'n_agents' attribute for multi-agent support")
@@ -116,11 +137,14 @@ class ModernMultiAgentController:
             raise ValueError(f"Algorithm '{algorithm}' not available. "
                            f"Available algorithms: {available_algorithms}")
         
-        print(f"Initializing ModernMultiAgentController")
+        print(f"🧠 Initializing Modern Multi-Agent Controller")
         print(f"Algorithm: {self.algorithm_name}")
         print(f"Environment: {env.__class__.__name__} with {env.n_agents} agents")
         print(f"Device: {device}")
         print(f"Mode: {'Training' if training else 'Evaluation'}")
+        
+        # 🚀 Initialize enhanced features
+        self._setup_enhanced_features()
         
         # Initialize training metrics
         self.episode_count = 0           # Number of episodes completed
@@ -145,20 +169,57 @@ class ModernMultiAgentController:
             list_available_algorithms()
             raise
         
-        # Training statistics
-        self.episode_count = 0
-        self.total_steps = 0
-        self.best_performance = float('-inf')
+        print(f"✅ ModernMultiAgentController initialized successfully")
+        print(f"   Algorithm: {self.algorithm_name.upper()}")
+        print(f"   Number of agents: {self.n_agents}")
+        print(f"   Training mode: {self.training}")
+        print(f"   Device: {device}")
+        if self.experiment_name:
+            print(f"   Experiment: {self.experiment_name}")
+    
+    def _setup_enhanced_features(self):
+        """Initialize enhanced tracking and monitoring features."""
         
-        # Logging
-        self.episode_rewards = []
-        self.episode_lengths = []
+        # Setup experiment management
+        if self.enable_advanced_tracking and self.experiment_name and ADVANCED_FEATURES_AVAILABLE:
+            try:
+                self.experiment_manager = create_experiment_manager()
+                if self.experiment_manager:
+                    # Create experiment configuration
+                    exp_config = {
+                        'algorithm': self.algorithm_name,
+                        'n_agents': self.env.n_agents,
+                        'device': str(self.device),
+                        **self.config
+                    }
+                    
+                    self.experiment_manager.start_experiment(
+                        name=self.experiment_name,
+                        config=exp_config,
+                        description=f"Modern controller training with {self.algorithm_name.upper()}"
+                    )
+                    print("🚀 Advanced experiment tracking enabled")
+            except Exception as e:
+                print(f"⚠️ Experiment management setup failed: {e}")
         
-        print(f"Initialized ModernMultiAgentController")
-        print(f"Algorithm: {self.algorithm_name.upper()}")
-        print(f"Number of agents: {self.n_agents}")
-        print(f"Training mode: {self.training}")
-        print(f"Device: {device}")
+        # Setup performance monitoring
+        if self.enable_performance_monitoring and ADVANCED_FEATURES_AVAILABLE:
+            try:
+                self.performance_monitor = create_performance_monitor()
+                if self.performance_monitor:
+                    self.performance_monitor.start_monitoring()
+                    print("📊 Performance monitoring enabled")
+            except Exception as e:
+                print(f"⚠️ Performance monitoring setup failed: {e}")
+        
+        # Setup curriculum learning
+        if self.enable_curriculum_learning and ADVANCED_FEATURES_AVAILABLE:
+            try:
+                self.curriculum_manager = create_curriculum_manager()
+                if self.curriculum_manager:
+                    print("🎓 Curriculum learning enabled")
+            except Exception as e:
+                print(f"⚠️ Curriculum learning setup failed: {e}")
     
     def train(self, total_episodes: int) -> None:
         """

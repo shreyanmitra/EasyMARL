@@ -76,6 +76,12 @@ import utils                # Core utility functions (environment creation, conf
 from modern_multiagent_controller import ModernMultiAgentController    # Production-ready training controller
 from simple_multiagent_controller import SimpleMultiAgentController    # Educational training controller
 
+# Enhanced features
+from utils import (
+    ENHANCED_FEATURES_AVAILABLE, ADVANCED_FEATURES_AVAILABLE,
+    setup_world_class_training, make_production_vec_env
+)
+
 # =============================================================================
 # GLOBAL CONFIGURATION: Environment and Algorithm Specifications
 # =============================================================================
@@ -435,13 +441,14 @@ def update_training_data(episode, reward, length):
 class TrainingThread(Thread):
     """Thread for running training in background."""
     
-    def __init__(self, env_name, algorithm, config, device, controller_type="simple"):
+    def __init__(self, env_name, algorithm, config, device, controller_type="simple", use_enhanced_features=False):
         super().__init__()
         self.env_name = env_name
         self.algorithm = algorithm
         self.config = config
         self.device = device
         self.controller_type = controller_type  # New parameter for controller selection
+        self.use_enhanced_features = use_enhanced_features  # Enhanced features flag
         self.status = "Starting..."
         self.error = None
         self.daemon = True
@@ -461,22 +468,28 @@ class TrainingThread(Thread):
             
             # Create controller based on selected type
             if self.controller_type == "simple":
-                # Use Simple Controller - beginner-friendly structure
+                # Use Simple Controller - beginner-friendly structure with optional enhancements
                 controller = SimpleMultiAgentController(
                     env=currentEnv,
                     config=self.config,
                     device=self.device,
                     algorithm=self.algorithm,
-                    training=True
+                    training=True,
+                    use_enhanced_features=self.use_enhanced_features and ENHANCED_FEATURES_AVAILABLE
                 )
             else:
-                # Use Modern Controller - advanced features
+                # Use Modern Controller - advanced features with enhancements
+                experiment_name = f"{self.algorithm}_{self.env_name}_{int(time.time())}"
+                
                 controller = ModernMultiAgentController(
                     env=currentEnv,
                     config=self.config,
                     device=self.device,
                     algorithm=self.algorithm,
-                    training=True
+                    training=True,
+                    experiment_name=experiment_name,
+                    enable_advanced_tracking=self.use_enhanced_features and ADVANCED_FEATURES_AVAILABLE,
+                    enable_performance_monitoring=True
                 )
             
             # Start wandb logging
@@ -586,7 +599,7 @@ class TrainingThread(Thread):
 
 training_thread = None
 
-def buttonClicked(env_name, algorithm, max_episodes, use_wandb, learning_rate, controller_type):
+def buttonClicked(env_name, algorithm, max_episodes, use_wandb, learning_rate, controller_type, use_enhanced_features=False):
     """Train the selected algorithm on the selected environment."""
     global training_thread
     
@@ -636,11 +649,12 @@ def buttonClicked(env_name, algorithm, max_episodes, use_wandb, learning_rate, c
     torch.manual_seed(seed)
     
     # Start training in background thread
-    training_thread = TrainingThread(env_name, algorithm, config, device, controller_type)
+    training_thread = TrainingThread(env_name, algorithm, config, device, controller_type, use_enhanced_features)
     training_thread.start()
     
+    enhanced_status = " with Enhanced Features" if use_enhanced_features and ENHANCED_FEATURES_AVAILABLE else ""
     controller_name = "Simple" if controller_type == "simple" else "Modern"
-    return f"Training started for {algorithm.upper()} on {env_name} using {controller_name} Controller. Check the training graph for progress!"
+    return f"Training started for {algorithm.upper()} on {env_name} using {controller_name} Controller{enhanced_status}. Check the training graph for progress!"
 
 def stop_training():
     """Stop the current training."""
@@ -706,13 +720,18 @@ def evaluateModel(env_name, algorithm, model_path):
     # Create environment
     env = utils.make_env(env_name)
     
-    # Create controller
+    # Create controller with enhanced features for evaluation
+    experiment_name = f"eval_{algorithm}_{env_name}_{int(time.time())}"
+    
     controller = ModernMultiAgentController(
         env=env,
         config=config,
         device=device,
         algorithm=algorithm,
-        training=False
+        training=False,
+        experiment_name=experiment_name,
+        enable_advanced_tracking=False,  # Disable for evaluation
+        enable_performance_monitoring=True
     )
     
     try:
@@ -801,6 +820,14 @@ with gr.Blocks(title="EasyMARL Framework", theme=gr.themes.Soft()) as interface:
                         value=False
                     )
                     
+                    # Enhanced features option (if available)
+                    use_enhanced_features = gr.Checkbox(
+                        label="Enable Enhanced Features (10x Performance)",
+                        value=ENHANCED_FEATURES_AVAILABLE,
+                        interactive=ENHANCED_FEATURES_AVAILABLE,
+                        info="Enhanced vectorization, JIT compilation, and world-class optimizations. Only available if enhanced features are installed."
+                    )
+                    
                     with gr.Row():
                         train_button = gr.Button("🚀 Start Training", variant="primary", size="lg")
                         stop_button = gr.Button("⏹️ Stop Training", variant="stop")
@@ -840,7 +867,7 @@ with gr.Blocks(title="EasyMARL Framework", theme=gr.themes.Soft()) as interface:
             # Event handlers for training tab
             train_button.click(
                 buttonClicked,
-                inputs=[env_dropdown, algorithm_dropdown, max_episodes, use_wandb, learning_rate, controller_type],
+                inputs=[env_dropdown, algorithm_dropdown, max_episodes, use_wandb, learning_rate, controller_type, use_enhanced_features],
                 outputs=training_status
             )
             

@@ -3,8 +3,12 @@ torch>=1.12.0
 torchvision>=0.13.0
 torchaudio>=0.12.0
 numpy>=1.21.6
-gym==0.21.0
+gymnasium>=0.29.0
+gym==0.21.0  # Keep for backward compatibility
 scipy>=1.9.0
+
+# Enhanced vectorization features
+gymnasium[vector]>=0.29.0
 
 # Multi-agent environment
 gym-minigrid==1.0.3
@@ -25,6 +29,13 @@ pillow>=9.0.0
 # Video generation
 moviepy>=1.0.3
 ffmpeg>=1.4
+
+# Advanced features (optional but recommended)
+psutil>=5.9.0              # System monitoring
+GPUtil>=1.4.0              # GPU monitoring  
+numba>=0.57.0              # JIT compilation
+jax>=0.4.0                 # JAX framework support
+jaxlib>=0.4.0              # JAX backend
 
 # Experiment tracking
 wandb>=0.12.21
