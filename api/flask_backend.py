@@ -124,7 +124,20 @@ def get_torch():
 
 # Initialize Flask web application
 app = Flask(__name__, static_folder='react-frontend/build', static_url_path='')
-CORS(app)  # Enable Cross-Origin Resource Sharing for React development server
+
+# Configure CORS dynamically based on environment
+CODESPACE_NAME = os.environ.get('CODESPACE_NAME')
+if CODESPACE_NAME:
+    # Codespaces-specific CORS configuration
+    allowed_origins = [
+        f"https://{CODESPACE_NAME}-3000.app.github.dev",
+        "http://localhost:3000",
+        "https://shreyanmitra.github.io"
+    ]
+    CORS(app, origins=allowed_origins)
+else:
+    # Default CORS configuration for local development
+    CORS(app)
 
 # Global training state management
 # These variables maintain the state across API requests
@@ -1485,19 +1498,48 @@ def configure_individual_agent(agent_id):
 
 
 if __name__ == '__main__':
-    print("🚀 Starting EasyMARL Flask Backend with Research Features")
-    print("=" * 60)
-    print("🧠 Multi-Agent Reinforcement Learning Framework")
-    print("📊 Research-Grade Algorithm Discovery & Experimentation")
-    print("🔬 Advanced Hyperparameter Optimization")
-    print("📱 React frontend should be built and available")
-    print("🔗 API available at http://localhost:5000/api")
-    print("🌐 Full app available at http://localhost:5000")
-    print("🔬 Research API available at http://localhost:5000/api/research")
+    # Detect if running in GitHub Codespaces
+    CODESPACE_NAME = os.environ.get('CODESPACE_NAME')
+    
+    if CODESPACE_NAME:
+        # Update CORS origins for Codespaces
+        frontend_url = f"https://{CODESPACE_NAME}-3000.app.github.dev"
+        backend_url = f"https://{CODESPACE_NAME}-5000.app.github.dev"
+        
+        # Update CORS configuration
+        app.config['CORS_ORIGINS'] = [
+            frontend_url,
+            "http://localhost:3000",
+            "https://shreyanmitra.github.io"
+        ]
+        
+        print("🚀 Starting EasyMARL Flask Backend in GitHub Codespaces")
+        print("=" * 60)
+        print("🎓 GitHub Student Pack - Free ML Development Environment")
+        print(f"📍 Codespace: {CODESPACE_NAME}")
+        print(f"📱 Frontend URL: {frontend_url}")
+        print(f"🔌 Backend URL:  {backend_url}")
+        print("🔗 API available at /api")
+        print("🔬 Research API available at /api/research")
+        print("=" * 60)
+        
+    else:
+        print("🚀 Starting EasyMARL Flask Backend")
+        print("=" * 60)
+        print("🧠 Multi-Agent Reinforcement Learning Framework")
+        print("📊 Research-Grade Algorithm Discovery & Experimentation")
+        print("🔬 Advanced Hyperparameter Optimization")
+        print("📱 React frontend should be built and available")
+        print("🔗 API available at http://localhost:5000/api")
+        print("🌐 Full app available at http://localhost:5000")
+        print("🔬 Research API available at http://localhost:5000/api/research")
+    
+    # Set port from environment or default to 5000
+    port = int(os.environ.get('PORT', 5000))
     
     app.run(
         host='0.0.0.0',
-        port=5000,
+        port=port,
         debug=True,
         threaded=True
     )

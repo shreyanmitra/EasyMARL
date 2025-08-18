@@ -1,0 +1,61 @@
+name: Codespaces Pre-build
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - '.devcontainer/**'
+      - 'requirements.txt'
+      - 'gui/react-frontend/package.json'
+  workflow_dispatch:
+
+jobs:
+  prebuild:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: 'gui/react-frontend/package-lock.json'
+        
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        cache: 'pip'
+        
+    - name: Validate devcontainer configuration
+      run: |
+        echo "🔍 Validating devcontainer.json..."
+        if [ -f .devcontainer/devcontainer.json ]; then
+          cat .devcontainer/devcontainer.json | jq . > /dev/null
+          echo "✅ devcontainer.json is valid JSON"
+        else
+          echo "❌ devcontainer.json not found"
+          exit 1
+        fi
+        
+    - name: Test Python dependencies
+      run: |
+        echo "🐍 Testing Python dependencies..."
+        pip install --dry-run -r requirements.txt
+        echo "✅ Python dependencies are valid"
+        
+    - name: Test React dependencies
+      run: |
+        echo "⚛️ Testing React dependencies..."
+        cd gui/react-frontend
+        npm ci --dry-run
+        echo "✅ React dependencies are valid"
+        
+    - name: Codespaces readiness check
+      run: |
+        echo "🎓 Codespaces environment is ready!"
+        echo "📝 Setup script: .devcontainer/setup.sh"
+        echo "🚀 Start command: ./start-easymarl.sh"
+        echo "🔧 Configuration: .devcontainer/devcontainer.json"

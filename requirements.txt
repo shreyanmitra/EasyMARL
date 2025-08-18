@@ -6,9 +6,6 @@ numpy>=1.26.0
 gymnasium>=1.0.0
 scipy>=1.14.0
 
-# Enhanced vectorization features
-gymnasium[vector]>=1.0.0
-
 # Multi-agent environment
 gym-minigrid>=1.2.0  # Updated to latest version
 shimmy>=2.0.0  # Latest shimmy for better compatibility

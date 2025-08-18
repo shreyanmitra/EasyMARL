@@ -36,7 +36,31 @@ EasyMARL is a comprehensive, beginner-friendly framework for multi-agent reinfor
 
 ## 🚀 Quick Start
 
-### Installation
+### 🎓 GitHub Codespaces (FREE - Recommended for Students)
+
+**Instant ML development environment - no installation required!**
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/shreyanmitra/EasyMARL)
+
+```bash
+# 1. Click "Open in GitHub Codespaces" above
+# 2. Wait 3-5 minutes for environment setup
+# 3. Run the quick start command:
+./tools/start-easymarl.sh
+
+# Access your app:
+# - Frontend: https://CODESPACE-NAME-3000.app.github.dev  
+# - Backend:  https://CODESPACE-NAME-5000.app.github.dev/api
+```
+
+**Benefits with GitHub Student Pack:**
+- ✅ **180 hours/month FREE** 
+- ✅ **Full ML environment** (PyTorch, JAX, all dependencies)
+- ✅ **8GB RAM + 4 CPU cores**
+- ✅ **GPU support available**
+- ✅ **No local setup required**
+
+### 💻 Local Installation
 
 ```bash
 # Basic installation
@@ -291,6 +315,10 @@ EasyMARL/
 │   └── templates/                 # Config templates
 ├── examples/                      # Tutorial examples
 ├── tools/                         # Utility scripts
+│   ├── start-easymarl.sh          # Start both frontend and backend
+│   ├── start-backend.sh           # Start Flask backend only
+│   ├── start-frontend.sh          # Start React frontend only
+│   └── manual_control_multigrid.py # Manual environment control
 ├── tests/                         # Unit tests
 ├── main.py                        # CLI entry point
 ├── gui.py                         # GUI launcher
