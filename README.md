@@ -84,6 +84,8 @@ easymarl-train --algorithm qmix --env MultiGrid-Empty-6x6-v0 --episodes 1000
 
 # Run demo
 easymarl-demo
+```
+
 ## 📚 Implemented Algorithms
 
 ### Value-Based Methods
