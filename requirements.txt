@@ -4,7 +4,6 @@ torchvision>=0.19.0
 torchaudio>=2.4.0
 numpy>=1.26.0
 gymnasium>=1.0.0
-gymnasium[classic-control,box2d,atari]>=1.0.0  # Full gymnasium with extras
 scipy>=1.14.0
 
 # Enhanced vectorization features
