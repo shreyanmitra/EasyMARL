@@ -6,7 +6,24 @@
  * bridges the React frontend with the existing Python controllers.
  */
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// Configure API base URL for different deployment environments
+const getApiBaseUrl = () => {
+  // Production deployment URLs
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+  
+  // Vercel deployment
+  if (process.env.NODE_ENV === 'production') {
+    // Replace with your actual Vercel deployment URL
+    return 'https://your-easymarl-api.vercel.app/api';
+  }
+  
+  // Local development
+  return 'http://localhost:5000/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 class TrainingAPI {
   /**
