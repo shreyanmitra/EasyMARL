@@ -1,0 +1,16 @@
+# Core Flask dependencies for deployment (latest versions)
+flask
+flask-cors
+gunicorn
+
+# Essential MARL dependencies (minimal versions for deployment)
+numpy
+gymnasium
+pyyaml
+
+# For JSON handling and utilities
+requests
+python-dateutil
+
+# Note: Heavy ML dependencies like torch are not needed for the API endpoints
+# They will be imported dynamically only when actually training models

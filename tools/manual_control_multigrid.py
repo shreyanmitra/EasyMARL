@@ -18,7 +18,7 @@
 The env is rendered as a string so it can be used over ssh.
 """
 import argparse
-import gym
+import gymnasium as gym
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -28,7 +28,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from envs import gym_multigrid
-from envs.gym_multigrid import multigrid_envs
+from environments.gym_multigrid import multigrid_envs
 
 
 def parse_args():

@@ -43,8 +43,16 @@ import numpy as np # Numerical computations
 import wandb       # Weights & Biases for experiment tracking
 
 # Import our framework components
-import utils                                        # Utility functions
-from src.controllers.modern_multiagent_controller import ModernMultiAgentController  # Main training controller
+try:
+    from core.utils import *
+    from controllers import ModernMultiAgentController
+    print("✓ Using EasyMARL framework structure")
+except ImportError:
+    # Fallback to old structure
+    import utils
+    from controllers import ModernMultiAgentController
+    print("⚠ Using legacy import structure")
+
 from algorithms import list_available_algorithms   # Available MARL algorithms
 
 def parse_args():
@@ -162,7 +170,7 @@ def get_controller_class(config):
     otherwise returns standard controller.
     """
     if config.get('vectorized', False):
-        from src.controllers.vectorized_controller import VectorizedMultiAgentController
+        from controllers import VectorizedMultiAgentController
         return VectorizedMultiAgentController
     else:
         return ModernMultiAgentController
@@ -296,6 +304,10 @@ def main(args):
     if args.vectorized and hasattr(controller, 'close'):
         controller.close()
 
-if __name__ == '__main__':
+def cli_main():
+    """Entry point for console script (pip install compatibility)"""
     args = parse_args()
     main(args)
+
+if __name__ == '__main__':
+    cli_main()

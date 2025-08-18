@@ -250,6 +250,57 @@ cd EasyMARL
 pip install -e .[all]
 ```
 
+## 📁 Project Structure
+
+EasyMARL follows a clean, modular package structure designed for both ease of use and professional development:
+
+```
+EasyMARL/
+├── easymarl/                       # Main package
+│   ├── core/                       # Core MARL functionality
+│   │   ├── utils/                  # Consolidated utilities
+│   │   │   ├── base.py             # Core utilities
+│   │   │   ├── advanced.py         # Advanced features
+│   │   │   └── enhanced.py         # Performance optimization
+│   │   ├── config_manager.py       # Configuration management
+│   │   └── research_interface.py   # Research tools
+│   ├── algorithms/                 # 20+ MARL algorithms
+│   │   ├── value_based/           # Q-learning, QMIX, VDN
+│   │   ├── policy_based/          # MADDPG, COMA, MAPPO
+│   │   ├── actor_critic/          # A3C, IMPALA variants
+│   │   └── model_based/           # Model-based approaches
+│   ├── environments/               # Environment management
+│   │   ├── vectorized_env.py      # Vectorized environments
+│   │   └── gym_multigrid/         # MultiGrid environments
+│   ├── controllers/                # Training controllers
+│   │   ├── simple_multiagent_controller.py    # Educational
+│   │   ├── modern_multiagent_controller.py    # Production
+│   │   └── vectorized_controller.py           # Performance
+│   ├── networks/                   # Neural network architectures
+│   ├── api/                       # Web API and deployment
+│   │   ├── flask_backend.py       # Main API server
+│   │   ├── minimal.py             # Lightweight deployment
+│   │   └── deployment/            # Deployment configs
+│   ├── gui/                       # User interfaces
+│   │   ├── gradio_interface.py    # Web-based GUI
+│   │   └── react-frontend/        # React components
+│   ├── config/                    # Configuration templates
+│   ├── examples/                  # Tutorial examples
+│   ├── tools/                     # Utility scripts
+│   └── tests/                     # Unit tests
+├── main.py                        # CLI entry point
+├── gui.py                         # GUI launcher
+├── api.py                         # API server launcher
+└── setup.py                       # Package configuration
+```
+
+### Key Entry Points
+
+- **GUI**: `python gui.py` or `easymarl-gui`
+- **CLI**: `python main.py --algorithm qmix` or `easymarl-train`
+- **API**: `python api.py` (for web deployment)
+- **Import**: `import easymarl` (for Python integration)
+
 ## 🎛️ Web-Based GUI
 
 Launch the professional web interface:

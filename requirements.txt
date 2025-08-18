@@ -1,59 +1,58 @@
-# Core ML and RL libraries
-torch>=1.12.0
-torchvision>=0.13.0
-torchaudio>=0.12.0
-numpy>=1.21.6
-gymnasium>=0.29.0
-gym==0.21.0  # Keep for backward compatibility
-scipy>=1.9.0
+# Core ML and RL libraries (latest versions - August 2025)
+torch>=2.4.0
+torchvision>=0.19.0
+torchaudio>=2.4.0
+numpy>=1.26.0
+gymnasium>=1.0.0
+gymnasium[classic-control,box2d,atari]>=1.0.0  # Full gymnasium with extras
+scipy>=1.14.0
 
 # Enhanced vectorization features
-gymnasium[vector]>=0.29.0
+gymnasium[vector]>=1.0.0
 
 # Multi-agent environment
-gym-minigrid==1.0.3
+gym-minigrid>=1.2.0  # Updated to latest version
+shimmy>=2.0.0  # Latest shimmy for better compatibility
 
 # GUI and web interface
-gradio>=4.0.0
+gradio>=5.0.0  # Latest Gradio version
 
 # React backend API
-flask>=2.0.0
-flask-cors>=3.0.0
+flask>=3.0.0
+flask-cors>=5.0.0
 
 # Data processing and visualization
-matplotlib>=3.8.2
+matplotlib>=3.9.0
 seaborn>=0.13.0
-pandas>=2.0.3
-pillow>=9.0.0
+pandas>=2.2.0
+pillow>=10.4.0
 
 # Video generation
 moviepy>=1.0.3
 ffmpeg>=1.4
 
-# Advanced features (optional but recommended)
-psutil>=5.9.0              # System monitoring
-GPUtil>=1.4.0              # GPU monitoring  
-numba>=0.57.0              # JIT compilation
-jax>=0.4.0                 # JAX framework support
-jaxlib>=0.4.0              # JAX backend
+# Advanced features (latest versions)
+psutil>=6.0.0              # System monitoring
+GPUtil>=1.4.0              # GPU monitoring (latest available)
+numba>=0.60.0              # JIT compilation
+jax>=0.4.30                # Latest JAX framework 
+jaxlib>=0.4.30             # Latest JAX backend
 
 # Experiment tracking
-wandb>=0.12.21
+wandb>=0.17.0  # Latest W&B version
 
 # Configuration
-pyyaml>=6.0
-configparser>=5.2.0
+pyyaml>=6.0.2
+configparser>=7.0.0
 
 # Optimization (for game-theoretic algorithms)
-cvxpy>=1.2.0
-networkx>=2.6.0
+cvxpy>=1.5.0
+networkx>=3.3.0
 
 # Development tools
-jupyter>=1.0.0
-setuptools>=63.2.0
-gradio>=4.0.0
+jupyter>=1.1.0
+setuptools>=70.0.0  # Latest setuptools (remove constraint)
 
 # Additional utilities
-tqdm>=4.64.0
-scipy>=1.9.0
-tensorboard>=2.10.0
+tqdm>=4.66.0
+tensorboard>=2.17.0
