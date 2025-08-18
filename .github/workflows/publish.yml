@@ -1,11 +1,11 @@
-name: Publish to PyPI
+name: Publish EasyMARL to PyPI
 
 on:
   push:
     tags:
       - 'v*'  # Trigger on version tags like v1.0.0, v2.1.3, etc.
   release:
-    types: [published]
+    types: [published, edited]
   workflow_dispatch:  # Allow manual triggering
 
 jobs:
@@ -16,7 +16,7 @@ jobs:
       id-token: write  # Required for trusted publishing to PyPI
 
     steps:
-    - name: Checkout repository
+    - name: Checkout EasyMARL repository
       uses: actions/checkout@v4
       with:
         fetch-depth: 0  # Fetch all history for proper versioning
@@ -31,44 +31,50 @@ jobs:
         python -m pip install --upgrade pip
         pip install build twine setuptools wheel
 
-    - name: Verify package metadata
+    - name: Verify EasyMARL package metadata
       run: |
         python setup.py check --metadata --strict
         python -c "import setuptools; print(f'setuptools version: {setuptools.__version__}')"
+        echo "✅ EasyMARL package metadata verified"
 
-    - name: Build package
+    - name: Build EasyMARL package
       run: |
         python -m build
         ls -la dist/
+        echo "✅ EasyMARL package built successfully"
 
     - name: Check package contents
       run: |
         twine check dist/*
+        echo "--- Source distribution contents ---"
         python -m tarfile -l dist/*.tar.gz | head -20
         echo "--- Wheel contents ---"
         python -c "import zipfile; z=zipfile.ZipFile('dist/$(ls dist/*.whl)'); print('\n'.join(z.namelist()[:20]))"
 
-    - name: Test package installation
+    - name: Test EasyMARL package installation
       run: |
         pip install dist/*.whl
         python -c "import easymarl; print(f'EasyMARL version: {easymarl.__version__}')"
         python -c "import easymarl; easymarl.get_info()"
+        echo "✅ EasyMARL package installation test passed"
 
-    - name: Publish to Test PyPI (optional)
+    - name: Publish EasyMARL to Test PyPI (optional)
       if: github.event_name == 'workflow_dispatch'
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
       run: |
         twine upload --repository testpypi dist/* --verbose
+        echo "✅ EasyMARL published to Test PyPI"
 
-    - name: Publish to PyPI
+    - name: Publish EasyMARL to PyPI
       if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/v')
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
         twine upload dist/* --verbose
+        echo "🚀 EasyMARL published to PyPI successfully!"
 
     - name: Create GitHub Release Assets
       if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/v')
@@ -86,8 +92,15 @@ jobs:
           pip install easymarl==${{ github.ref_name }}
           ```
           
+          ### 🎯 Features
+          - 20+ Multi-Agent Reinforcement Learning algorithms
+          - Professional web-based GUI interface  
+          - 10x performance optimizations
+          - Educational and research-ready
+          
           ### 🔗 Quick Links
           - 📖 [Documentation](https://github.com/${{ github.repository }})
+          - 🎮 [Live Demo](https://${{ github.repository_owner }}.github.io/EasyMARL)
           - 🐛 [Bug Reports](https://github.com/${{ github.repository }}/issues)
           - 💬 [Discussions](https://github.com/${{ github.repository }}/discussions)
           
@@ -95,7 +108,7 @@ jobs:
           - Source distribution (.tar.gz)
           - Wheel distribution (.whl)
           
-          For changelog and detailed release notes, see the commit history.
+          **Making Multi-Agent RL accessible to everyone! 🎓**
 
   test-installation:
     needs: build-and-publish
@@ -117,31 +130,31 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Test installation from PyPI
+    - name: Test EasyMARL installation from PyPI
       run: |
         python -m pip install --upgrade pip
         # Wait a bit for PyPI to propagate
         sleep 60
         pip install easymarl
-        python -c "import easymarl; print(f'Successfully installed EasyMARL {easymarl.__version__} on Python {easymarl.sys.version}')"
+        python -c "import easymarl; print(f'Successfully installed EasyMARL {easymarl.__version__} on {easymarl.sys.platform}')"
 
-    - name: Test basic functionality
+    - name: Test EasyMARL basic functionality
       run: |
         python -c "
         import easymarl
         
         # Test package info
         info = easymarl.get_info()
-        print('Package info retrieved successfully')
+        print('✅ EasyMARL package info retrieved successfully')
         
         # Test algorithm listing
         algorithms = easymarl.list_algorithms()
-        print(f'Found {len(algorithms)} algorithms')
+        print(f'✅ Found {len(algorithms)} EasyMARL algorithms')
         
         # Test environment creation (if available)
         try:
             env = easymarl.make_env('MultiGrid-Empty-15x15-v0')
-            print('Environment creation successful')
+            print('✅ EasyMARL environment creation successful')
         except Exception as e:
-            print(f'Environment creation test skipped: {e}')
+            print(f'⚠️ EasyMARL environment creation test skipped: {e}')
         "

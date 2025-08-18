@@ -1,0 +1,93 @@
+name: Deploy EasyMARL Documentation & Demo
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  release:
+    types: [ published ]
+
+# Add permissions for GitHub Pages deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Cache node modules
+      uses: actions/cache@v3
+      with:
+        path: react-frontend/node_modules
+        key: ${{ runner.os }}-node-${{ hashFiles('react-frontend/package.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+          
+    - name: Verify React frontend structure
+      run: |
+        echo "📁 Repository structure:"
+        ls -la
+        echo ""
+        echo "📁 React frontend directory:"
+        if [ -d "react-frontend" ]; then
+          ls -la react-frontend/
+        else
+          echo "❌ react-frontend directory not found"
+          exit 1
+        fi
+        
+    - name: Install React dependencies
+      run: |
+        cd react-frontend
+        npm install
+        echo "✅ Dependencies installed"
+        
+    - name: Build React app for EasyMARL Demo
+      run: |
+        cd react-frontend
+        # Set environment variables for build
+        export CI=false
+        export GENERATE_SOURCEMAP=false
+        export DISABLE_ESLINT_PLUGIN=true
+        
+        # Build the React demo app
+        npm run build
+        
+        # Verify build was successful
+        if [ ! -d "build" ]; then
+          echo "❌ Build directory not created"
+          exit 1
+        fi
+        
+        echo "✅ EasyMARL React demo build successful"
+        echo "Build contents:"
+        ls -la build/
+        
+    - name: Setup GitHub Pages
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.event_name == 'release'
+      uses: actions/configure-pages@v4
+      
+    - name: Upload to GitHub Pages
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.event_name == 'release'
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: ./react-frontend/build
+        
+    - name: Deploy EasyMARL Demo to GitHub Pages
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.event_name == 'release'
+      id: deployment
+      uses: actions/deploy-pages@v4
