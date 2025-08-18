@@ -20,8 +20,6 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: 'gui/react-frontend/package-lock.json'
         
     - name: Setup Python
       uses: actions/setup-python@v4
@@ -50,12 +48,21 @@ jobs:
       run: |
         echo "⚛️ Testing React dependencies..."
         cd gui/react-frontend
-        npm ci --dry-run
+        
+        # Check if package-lock.json exists
+        if [ -f "package-lock.json" ]; then
+          echo "📦 Using npm ci (package-lock.json found)"
+          npm ci --dry-run
+        else
+          echo "📦 Using npm install (no package-lock.json, will install)"
+          npm install --dry-run
+        fi
+        
         echo "✅ React dependencies are valid"
         
     - name: Codespaces readiness check
       run: |
         echo "🎓 Codespaces environment is ready!"
         echo "📝 Setup script: .devcontainer/setup.sh"
-        echo "🚀 Start command: ./start-easymarl.sh"
+        echo "🚀 Start command: ./tools/start-easymarl.sh"
         echo "🔧 Configuration: .devcontainer/devcontainer.json"
