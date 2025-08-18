@@ -15,8 +15,8 @@ const getApiBaseUrl = () => {
   
   // Vercel deployment
   if (process.env.NODE_ENV === 'production') {
-    // Replace with your actual Vercel deployment URL
-    return 'https://your-easymarl-api.vercel.app/api';
+    // Your actual Vercel deployment URL
+    return 'https://easy-marl.vercel.app/api';
   }
   
   // Local development

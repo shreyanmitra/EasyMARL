@@ -256,42 +256,47 @@ EasyMARL follows a clean, modular package structure designed for both ease of us
 
 ```
 EasyMARL/
-├── easymarl/                       # Main package
-│   ├── core/                       # Core MARL functionality
-│   │   ├── utils/                  # Consolidated utilities
-│   │   │   ├── base.py             # Core utilities
-│   │   │   ├── advanced.py         # Advanced features
-│   │   │   └── enhanced.py         # Performance optimization
-│   │   ├── config_manager.py       # Configuration management
-│   │   └── research_interface.py   # Research tools
-│   ├── algorithms/                 # 20+ MARL algorithms
-│   │   ├── value_based/           # Q-learning, QMIX, VDN
-│   │   ├── policy_based/          # MADDPG, COMA, MAPPO
-│   │   ├── actor_critic/          # A3C, IMPALA variants
-│   │   └── model_based/           # Model-based approaches
-│   ├── environments/               # Environment management
-│   │   ├── vectorized_env.py      # Vectorized environments
-│   │   └── gym_multigrid/         # MultiGrid environments
-│   ├── controllers/                # Training controllers
-│   │   ├── simple_multiagent_controller.py    # Educational
-│   │   ├── modern_multiagent_controller.py    # Production
-│   │   └── vectorized_controller.py           # Performance
-│   ├── networks/                   # Neural network architectures
-│   ├── api/                       # Web API and deployment
-│   │   ├── flask_backend.py       # Main API server
-│   │   ├── minimal.py             # Lightweight deployment
-│   │   └── deployment/            # Deployment configs
-│   ├── gui/                       # User interfaces
-│   │   ├── gradio_interface.py    # Web-based GUI
-│   │   └── react-frontend/        # React components
-│   ├── config/                    # Configuration templates
-│   ├── examples/                  # Tutorial examples
-│   ├── tools/                     # Utility scripts
-│   └── tests/                     # Unit tests
+├── core/                           # Core MARL functionality
+│   ├── utils/                      # Consolidated utilities
+│   │   ├── base.py                 # Core utilities
+│   │   ├── advanced.py             # Advanced features
+│   │   └── enhanced.py             # Performance optimization
+│   ├── config_manager.py           # Configuration management
+│   └── research_interface.py       # Research tools
+├── algorithms/                     # 20+ MARL algorithms
+│   ├── value_based/               # Q-learning, QMIX, VDN
+│   ├── policy_based/              # MADDPG, COMA, MAPPO
+│   ├── actor_critic/              # A3C, IMPALA variants
+│   ├── model_based/               # Model-based approaches
+│   └── taxonomy.py                # Algorithm classification
+├── environments/                   # Environment management
+│   ├── vectorized_env.py          # Vectorized environments
+│   └── gym_multigrid/             # MultiGrid environments
+├── controllers/                    # Training controllers
+│   ├── simple_multiagent_controller.py    # Educational
+│   ├── modern_multiagent_controller.py    # Production
+│   └── vectorized_controller.py           # Performance
+├── networks/                       # Neural network architectures
+├── api/                           # Web API and deployment
+│   ├── flask_backend.py           # Main API server
+│   ├── minimal.py                 # Lightweight deployment
+│   └── deployment/                # Deployment configs
+├── gui/                           # User interfaces
+│   ├── gradio_interface.py        # Web-based GUI
+│   └── react-frontend/            # React components
+├── config/                        # Configuration templates
+│   ├── default.yaml               # Default settings
+│   ├── domain/                    # Environment configs
+│   ├── mode/                      # Algorithm configs
+│   └── templates/                 # Config templates
+├── examples/                      # Tutorial examples
+├── tools/                         # Utility scripts
+├── tests/                         # Unit tests
 ├── main.py                        # CLI entry point
 ├── gui.py                         # GUI launcher
 ├── api.py                         # API server launcher
-└── setup.py                       # Package configuration
+├── setup.py                       # Package configuration
+└── requirements.txt               # Dependencies
 ```
 
 ### Key Entry Points
@@ -362,8 +367,8 @@ pip install -e .[all]
 python -m pytest tests/
 
 # Run linting
-flake8 easymarl/
-black easymarl/
+flake8 algorithms/ controllers/ core/ api/ gui/
+black algorithms/ controllers/ core/ api/ gui/
 ```
 
 ## 📄 Citation
@@ -399,7 +404,59 @@ If you use EasyMARL in your research, please cite:
 - **Visual learning**: Rich visualizations and animations
 - **Flexible deployment**: Web-based or local installation
 
-## 📞 Support
+## � Deployment
+
+EasyMARL supports multiple deployment options for different use cases:
+
+### 📦 PyPI Package
+```bash
+# Install from PyPI
+pip install easymarl
+
+# Use command-line tools
+easymarl-train --algorithm qmix
+easymarl-gui
+```
+
+### 🌐 Web Deployment
+
+#### React Frontend
+```bash
+# Build React app
+cd gui/react-frontend
+npm install
+npm run build
+
+# Deploy to GitHub Pages, Netlify, or Vercel
+```
+
+#### Flask API Backend
+```bash
+# Deploy to Vercel
+vercel --prod
+
+# Deploy to Heroku
+git push heroku main
+
+# Local development
+python api.py
+```
+
+#### Docker Deployment
+```bash
+# Build container
+docker build -t easymarl .
+
+# Run container
+docker run -p 5000:5000 easymarl
+```
+
+### ⚙️ Configuration
+- **React Frontend**: Update `gui/react-frontend/.env.production` with your API URL
+- **Flask Backend**: Configure `api/deployment/vercel.json` for Vercel deployment
+- **GitHub Actions**: Automated deployment on push to main branch
+
+## �📞 Support
 
 - **📧 Email**: shreyan.m.mitra@gmail.com
 - **💬 Discussions**: [GitHub Discussions](https://github.com/shreyanmitra/EasyMARL/discussions)

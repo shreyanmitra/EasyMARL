@@ -35,8 +35,8 @@ jobs:
     - name: Cache node modules
       uses: actions/cache@v3
       with:
-        path: react-frontend/node_modules
-        key: ${{ runner.os }}-node-${{ hashFiles('react-frontend/package.json') }}
+        path: gui/react-frontend/node_modules
+        key: ${{ runner.os }}-node-${{ hashFiles('gui/react-frontend/package.json') }}
         restore-keys: |
           ${{ runner.os }}-node-
           
@@ -45,23 +45,31 @@ jobs:
         echo "📁 Repository structure:"
         ls -la
         echo ""
-        echo "📁 React frontend directory:"
-        if [ -d "react-frontend" ]; then
-          ls -la react-frontend/
+        echo "📁 GUI directory:"
+        if [ -d "gui" ]; then
+          ls -la gui/
+          echo ""
+          echo "📁 React frontend directory:"
+          if [ -d "gui/react-frontend" ]; then
+            ls -la gui/react-frontend/
+          else
+            echo "❌ gui/react-frontend directory not found"
+            exit 1
+          fi
         else
-          echo "❌ react-frontend directory not found"
+          echo "❌ gui directory not found"
           exit 1
         fi
         
     - name: Install React dependencies
       run: |
-        cd react-frontend
+        cd gui/react-frontend
         npm install
         echo "✅ Dependencies installed"
         
     - name: Build React app for EasyMARL Demo
       run: |
-        cd react-frontend
+        cd gui/react-frontend
         # Set environment variables for build
         export CI=false
         export GENERATE_SOURCEMAP=false
@@ -99,7 +107,7 @@ jobs:
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.event_name == 'release'
       uses: actions/upload-pages-artifact@v3
       with:
-        path: ./react-frontend/build
+        path: ./gui/react-frontend/build
         
     - name: Deploy EasyMARL Demo to GitHub Pages
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.event_name == 'release'

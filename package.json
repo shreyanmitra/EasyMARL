@@ -1,0 +1,14 @@
+{
+  "name": "easymarl-deployment",
+  "version": "1.0.0",
+  "description": "Deployment configuration for EasyMARL",
+  "private": true,
+  "scripts": {
+    "deploy:vercel": "vercel deploy --prod",
+    "deploy:github": "cd gui/react-frontend && npm run build",
+    "deploy:all": "npm run deploy:vercel && npm run deploy:github"
+  },
+  "devDependencies": {
+    "vercel": "^32.0.0"
+  }
+}
