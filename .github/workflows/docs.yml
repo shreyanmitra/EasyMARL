@@ -66,6 +66,10 @@ jobs:
         export CI=false
         export GENERATE_SOURCEMAP=false
         export DISABLE_ESLINT_PLUGIN=true
+        export SKIP_PREFLIGHT_CHECK=true
+        
+        # Install any missing dependencies
+        npm install --legacy-peer-deps
         
         # Build the React demo app
         npm run build
@@ -76,9 +80,16 @@ jobs:
           exit 1
         fi
         
+        # Check if main files exist
+        if [ ! -f "build/index.html" ]; then
+          echo "❌ index.html not found in build"
+          exit 1
+        fi
+        
         echo "✅ EasyMARL React demo build successful"
         echo "Build contents:"
         ls -la build/
+        echo "index.html size: $(wc -c < build/index.html) bytes"
         
     - name: Setup GitHub Pages
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.event_name == 'release'

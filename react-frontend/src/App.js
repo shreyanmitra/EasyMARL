@@ -22,7 +22,7 @@ import './App.css';
  */
 function App() {
   return (
-    <Router basename="/EasyMARL">
+    <Router basename={process.env.NODE_ENV === 'production' ? '/EasyMARL' : ''}>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
         {/* Navigation Bar */}
         <Navbar />

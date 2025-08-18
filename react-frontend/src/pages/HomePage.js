@@ -6,7 +6,8 @@ import {
   BeakerIcon,
   ChipIcon,
   ChartBarIcon,
-  AcademicCapIcon 
+  AcademicCapIcon,
+  PlayIcon as PlayCircleIcon  // Add PlayCircleIcon as alias
 } from '@heroicons/react/outline';
 
 /**
