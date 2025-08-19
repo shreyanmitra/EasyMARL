@@ -6,14 +6,14 @@ Modern Web Interface for Multi-Agent Reinforcement Learning
 
 This Flask server provides REST API endpoints that allow the React frontend
 to communicate with the Python MARL training infrastructure. It maintains
-all the functionality of the original GUI while enabling modern web deployment.
+all the functionality of the original GUI for local development and GitHub Codespaces.
 
 For MARL Beginners:
 This is the bridge between the web interface (React) and the AI training code (Python).
 You don't need to understand Flask to use EasyMARL, but this enables:
 - Training agents through a web browser
-- Real-time progress monitoring
-- Easy deployment to GitHub Pages or other platforms
+- Real-time progress monitoring  
+- Local development and GitHub Codespaces deployment
 
 Key Features:
 - REST API endpoints for training control (start, stop, configure)
@@ -41,6 +41,8 @@ serving the React frontend and providing API access to training status.
 # Import Flask components for web server functionality
 from flask import Flask, request, jsonify, send_from_directory  # Core Flask functionality
 from flask_cors import CORS                                    # Cross-Origin Resource Sharing
+from flask_limiter import Limiter                             # Rate limiting
+from flask_limiter.util import get_remote_address           # Client IP detection
 import os          # Operating system interface
 import json        # JSON data handling
 import threading   # Multi-threading support
@@ -125,6 +127,16 @@ def get_torch():
 # Initialize Flask web application
 app = Flask(__name__, static_folder='react-frontend/build', static_url_path='')
 
+# Demo Mode Detection
+DEMO_MODE = os.environ.get('DEMO_MODE', 'false').lower() == 'true'
+READ_ONLY = os.environ.get('READ_ONLY', 'false').lower() == 'true'
+
+# Security Configuration
+import secrets
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(16))
+app.config['JSON_SORT_KEYS'] = False  # Don't expose internal structure
+app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False  # Minimize response size
+
 # Configure CORS dynamically based on environment
 CODESPACE_NAME = os.environ.get('CODESPACE_NAME')
 if CODESPACE_NAME:
@@ -138,6 +150,83 @@ if CODESPACE_NAME:
 else:
     # Default CORS configuration for local development
     CORS(app)
+
+# Rate Limiting Configuration
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["1000 per hour", "100 per minute"],
+    storage_uri="memory://",  # Use in-memory storage for simplicity
+    strategy="fixed-window"
+)
+
+# Security Functions
+def validate_algorithm(algorithm):
+    """Validate algorithm parameter against whitelist"""
+    allowed_algorithms = [
+        'qmix', 'vdn', 'qtran', 'mappo', 'maddpg', 'coma', 'ippo', 'iql', 
+        'maven', 'hql', 'lql', 'mfq', 'nfsp', 'dcg', 'maacc', 'wolfphc',
+        'comacomm', 'maddpgcomm', 'minimaxq', 'ppo'
+    ]
+    return algorithm.lower() in allowed_algorithms
+
+def validate_environment(environment):
+    """Validate environment parameter against whitelist"""
+    allowed_environments = [
+        'MultiGrid-Empty-6x6-v0', 'MultiGrid-Empty-8x8-v0', 
+        'MultiGrid-Empty-16x16-v0', 'MultiGrid-FourRooms-v0',
+        'MultiGrid-Cluttered-Fixed-15x15', 'MultiGrid-Cluttered-v0',
+        'MultiGrid-DoorKey-5x5-v0', 'MultiGrid-DoorKey-6x6-v0',
+        'MultiGrid-DoorKey-8x8-v0'
+    ]
+    return environment in allowed_environments
+
+def validate_input_data(data, required_fields=None, max_length=1000):
+    """Validate and sanitize input data"""
+    if not isinstance(data, dict):
+        return False, "Invalid JSON data"
+    
+    if required_fields:
+        for field in required_fields:
+            if field not in data:
+                return False, f"Missing required field: {field}"
+            
+            # Basic string length validation
+            if isinstance(data[field], str) and len(data[field]) > max_length:
+                return False, f"Field {field} too long (max {max_length} chars)"
+    
+    return True, "Valid"
+
+# Enhanced Error Handlers
+@app.errorhandler(400)
+def bad_request(error):
+    return jsonify({'success': False, 'error': 'Bad request', 'message': str(error)}), 400
+
+@app.errorhandler(500)
+def internal_error(error):
+    # Don't expose internal errors in production
+    is_production = os.environ.get('FLASK_ENV') == 'production'
+    if is_production:
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+    else:
+        return jsonify({'success': False, 'error': 'Internal server error', 'details': str(error)}), 500
+
+# Demo Mode Decorator
+def demo_mode_check(f):
+    """Decorator to block training operations in demo mode"""
+    from functools import wraps
+    
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if DEMO_MODE or READ_ONLY:
+            return jsonify({
+                'success': False, 
+                'error': 'Demo Mode',
+                'message': 'This is a read-only demonstration. Training is disabled.',
+                'demo_mode': True
+            }), 403
+        return f(*args, **kwargs)
+    return decorated_function
 
 # Global training state management
 # These variables maintain the state across API requests
@@ -312,6 +401,8 @@ def serve_react_static(path):
 
 # API Routes
 @app.route('/api/training/start', methods=['POST'])
+@limiter.limit("5 per minute", error_message="Training start requests are limited to 5 per minute")
+@demo_mode_check
 def start_training():
     """
     Start a new training session.
@@ -330,6 +421,52 @@ def start_training():
     
     try:
         config = request.json
+        
+        # Input validation
+        if not config:
+            return jsonify({'success': False, 'error': 'No configuration provided'}), 400
+        
+        # Validate required fields
+        required_fields = ['environment', 'algorithm', 'controllerType']
+        for field in required_fields:
+            if field not in config:
+                return jsonify({'success': False, 'error': f'Missing required field: {field}'}), 400
+        
+        # Validate specific fields
+        if not validate_environment(config['environment']):
+            return jsonify({'success': False, 'error': 'Invalid environment'}), 400
+        
+        if not validate_algorithm(config['algorithm']):
+            return jsonify({'success': False, 'error': 'Invalid algorithm'}), 400
+        
+        # Validate controller type
+        valid_controllers = ['simple', 'modern', 'vectorized']
+        if config['controllerType'] not in valid_controllers:
+            return jsonify({'success': False, 'error': f'Invalid controller type. Must be one of: {valid_controllers}'}), 400
+        
+        # Validate numeric parameters
+        if 'maxEpisodes' in config:
+            try:
+                max_episodes = int(config['maxEpisodes'])
+                if max_episodes <= 0 or max_episodes > 50000:
+                    return jsonify({'success': False, 'error': 'maxEpisodes must be between 1 and 50000'}), 400
+                config['maxEpisodes'] = max_episodes
+            except (ValueError, TypeError):
+                return jsonify({'success': False, 'error': 'maxEpisodes must be a valid integer'}), 400
+        
+        if 'learningRate' in config:
+            try:
+                lr = float(config['learningRate'])
+                if lr <= 0 or lr > 1:
+                    return jsonify({'success': False, 'error': 'learningRate must be between 0 and 1'}), 400
+                config['learningRate'] = lr
+            except (ValueError, TypeError):
+                return jsonify({'success': False, 'error': 'learningRate must be a valid number'}), 400
+        
+        # Validate boolean parameters
+        if 'useWandB' in config:
+            if not isinstance(config['useWandB'], bool):
+                return jsonify({'success': False, 'error': 'useWandB must be true or false'}), 400
         
         # Stop existing session if running
         if current_session and current_session.is_training:
@@ -362,6 +499,8 @@ def start_training():
         }), 500
 
 @app.route('/api/training/stop', methods=['POST'])
+@limiter.limit("10 per minute")
+@demo_mode_check
 def stop_training():
     """Stop the current training session."""
     global current_session
@@ -516,6 +655,9 @@ def health_check():
     return jsonify({
         'status': 'healthy',
         'version': '1.0.0',
+        'demo_mode': DEMO_MODE,
+        'read_only': READ_ONLY,
+        'training_disabled': DEMO_MODE or READ_ONLY,
         'timestamp': datetime.now().isoformat()
     })
 

@@ -38,11 +38,13 @@
     },
     "3000": {
       "label": "React Frontend", 
-      "onAutoForward": "notify"
+      "onAutoForward": "openBrowser"
     }
   },
   
   "postCreateCommand": "bash .devcontainer/setup.sh",
+  
+  "postStartCommand": "bash .devcontainer/autostart.sh",
   
   "shutdownAction": "stopContainer",
   

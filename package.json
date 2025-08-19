@@ -1,14 +1,11 @@
 {
-  "name": "easymarl-deployment",
+  "name": "easymarl-local",
   "version": "1.0.0",
-  "description": "Deployment configuration for EasyMARL",
+  "description": "Local and Codespaces development configuration for EasyMARL",
   "private": true,
   "scripts": {
-    "deploy:vercel": "vercel deploy --prod",
-    "deploy:github": "cd gui/react-frontend && npm run build",
-    "deploy:all": "npm run deploy:vercel && npm run deploy:github"
-  },
-  "devDependencies": {
-    "vercel": "^32.0.0"
+    "build": "cd gui/react-frontend && npm run build",
+    "start": "bash tools/start-easymarl.sh",
+    "dev": "bash tools/start-easymarl.sh"
   }
 }

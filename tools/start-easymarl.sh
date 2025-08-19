@@ -9,15 +9,42 @@ echo ""
 PROJECT_ROOT=$(dirname $PWD)
 cd $PROJECT_ROOT
 
+# Check and install dependencies if needed
+echo "🔍 Checking Python dependencies..."
+if ! python -c "import flask" 2>/dev/null; then
+    echo "📦 Flask not found - installing Python dependencies..."
+    echo "⏳ This may take a few minutes for ML packages..."
+    pip install --upgrade pip
+    pip install -r requirements.txt
+    echo "✅ Python dependencies installed!"
+else
+    echo "✅ Python dependencies are available"
+fi
+
+# Check React dependencies
+if [ ! -d "gui/react-frontend/node_modules" ]; then
+    echo "📦 Installing React dependencies..."
+    cd gui/react-frontend
+    npm install
+    cd $PROJECT_ROOT
+    echo "✅ React dependencies installed!"
+else
+    echo "✅ React dependencies are available"
+fi
+
+# Configure ports (environment variables override defaults)
+FLASK_PORT=${PORT:-5000}
+REACT_PORT=${REACT_PORT:-3000}
+
 # Check if we're in Codespaces
 if [ -n "$CODESPACE_NAME" ]; then
     echo "✅ Running in GitHub Codespaces: $CODESPACE_NAME"
-    FRONTEND_URL="https://$CODESPACE_NAME-3000.app.github.dev"
-    BACKEND_URL="https://$CODESPACE_NAME-5000.app.github.dev"
+    FRONTEND_URL="https://$CODESPACE_NAME-$REACT_PORT.app.github.dev"
+    BACKEND_URL="https://$CODESPACE_NAME-$FLASK_PORT.app.github.dev"
 else
     echo "🏠 Running locally"
-    FRONTEND_URL="http://localhost:3000"
-    BACKEND_URL="http://localhost:5000"
+    FRONTEND_URL="http://localhost:$REACT_PORT"
+    BACKEND_URL="http://localhost:$FLASK_PORT"
 fi
 
 echo ""
@@ -55,8 +82,8 @@ sleep 15
 
 echo ""
 echo "🔍 Checking service status..."
-check_service 5000 "Flask Backend"
-check_service 3000 "React Frontend"
+check_service $FLASK_PORT "Flask Backend"
+check_service $REACT_PORT "React Frontend"
 
 echo ""
 echo "🌐 Access URLs:"

@@ -2,12 +2,14 @@
 
 [![PyPI version](https://badge.fury.io/py/easymarl.svg)](https://badge.fury.io/py/easymarl)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.s├── api/                           # Web API for local/Codespaces
+│   ├── flask_backend.py           # Main Flask server
+│   ├── minimal.py                 # Lightweight API serverds.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub stars](https://img.shields.io/github/stars/shreyanmitra/EasyMARL.svg)](https://github.com/shreyanmitra/EasyMARL/stargazers)
 
 > *Making Multi-Agent Reinforcement Learning accessible to everyone - from students to researchers*
 
-EasyMARL is a comprehensive, beginner-friendly framework for multi-agent reinforcement learning that bridges the gap between educational simplicity and production-ready performance. Whether you're learning MARL for the first time or conducting cutting-edge research, EasyMARL provides the tools you need.
+EasyMARL is a comprehensive, beginner-friendly framework for multi-agent reinforcement learning that bridges the gap between educational simplicity and research-ready performance. Whether you're learning MARL for the first time or conducting cutting-edge research, EasyMARL provides the tools you need.
 
 ## 🌟 Key Features
 
@@ -17,7 +19,7 @@ EasyMARL is a comprehensive, beginner-friendly framework for multi-agent reinfor
 - **Step-by-Step Learning**: Detailed tutorials and examples
 - **Algorithm Comparisons**: Side-by-side performance analysis
 
-### 🚀 **Production Ready**
+### 🚀 **Research Ready**
 - **20+ MARL Algorithms**: Comprehensive algorithm library
 - **10x Performance**: Enhanced vectorization and JIT compilation
 - **Scalable Architecture**: Handle complex multi-agent scenarios
@@ -192,7 +194,7 @@ controller = easymarl.SimpleMultiAgentController(
 
 #### 2. 🚀 **ModernMultiAgentController** - For Researchers
 ```python
-# Production-ready with advanced features
+# Research-ready with advanced features
 controller = easymarl.ModernMultiAgentController(
     env=env,
     algorithm="qmix", 
@@ -298,7 +300,7 @@ EasyMARL/
 │   └── gym_multigrid/             # MultiGrid environments
 ├── controllers/                    # Training controllers
 │   ├── simple_multiagent_controller.py    # Educational
-│   ├── modern_multiagent_controller.py    # Production
+│   ├── modern_multiagent_controller.py    # Research
 │   └── vectorized_controller.py           # Performance
 ├── networks/                       # Neural network architectures
 ├── api/                           # Web API and deployment
@@ -331,7 +333,7 @@ EasyMARL/
 
 - **GUI**: `python gui.py` or `easymarl-gui`
 - **CLI**: `python main.py --algorithm qmix` or `easymarl-train`
-- **API**: `python api.py` (for web deployment)
+- **API**: `python api.py` (for local/Codespaces development)
 - **Import**: `import easymarl` (for Python integration)
 
 ## 🎛️ Web-Based GUI
@@ -421,7 +423,7 @@ If you use EasyMARL in your research, please cite:
 - **Educational design**: Code structure mirrors textbook concepts
 
 ### For Researchers  
-- **Production ready**: Scale from prototype to publication
+- **Research ready**: Scale from prototype to publication
 - **Comprehensive algorithms**: 20+ state-of-the-art implementations
 - **Experiment management**: Professional tracking and analysis
 - **Extensible framework**: Easy to add new algorithms and environments
@@ -430,59 +432,42 @@ If you use EasyMARL in your research, please cite:
 - **Classroom ready**: GUI requires no programming experience
 - **Comparative analysis**: Easy algorithm comparisons
 - **Visual learning**: Rich visualizations and animations
-- **Flexible deployment**: Web-based or local installation
+- **Local development**: Optimized for GitHub Codespaces and local environments
 
 ## � Deployment
 
-EasyMARL supports multiple deployment options for different use cases:
+EasyMARL is designed for local development and GitHub Codespaces only.
 
-### 📦 PyPI Package
+### 🎓 GitHub Codespaces (Recommended)
 ```bash
-# Install from PyPI
-pip install easymarl
-
-# Use command-line tools
-easymarl-train --algorithm qmix
-easymarl-gui
+# Open in Codespaces - services start automatically
+# Frontend: https://CODESPACE-3000.app.github.dev
+# Backend: https://CODESPACE-5000.app.github.dev/api
 ```
 
-### 🌐 Web Deployment
-
-#### React Frontend
+### 💻 Local Development
 ```bash
-# Build React app
+# Clone repository and start services
+./tools/start-easymarl.sh
+
+# Access locally
+# Frontend: http://localhost:3000
+# Backend: http://localhost:5000/api
+```
+
+### 📱 React Demo (GitHub Pages)
+```bash
+# Build React app for demo showcase (frontend only)
 cd gui/react-frontend
-npm install
 npm run build
 
-# Deploy to GitHub Pages, Netlify, or Vercel
-```
-
-#### Flask API Backend
-```bash
-# Deploy to Vercel
-vercel --prod
-
-# Deploy to Heroku
-git push heroku main
-
-# Local development
-python api.py
-```
-
-#### Docker Deployment
-```bash
-# Build container
-docker build -t easymarl .
-
-# Run container
-docker run -p 5000:5000 easymarl
+# Demo deployment - no training capabilities
 ```
 
 ### ⚙️ Configuration
-- **React Frontend**: Update `gui/react-frontend/.env.production` with your API URL
-- **Flask Backend**: Configure `api/deployment/vercel.json` for Vercel deployment
-- **GitHub Actions**: Automated deployment on push to main branch
+- **React Frontend**: Configure environment variables for local development
+- **Flask Backend**: Use environment variables for Codespaces configuration  
+- **GitHub Actions**: Automated GitHub Pages deployment for frontend demos
 
 ## �📞 Support
 

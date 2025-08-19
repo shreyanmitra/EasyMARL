@@ -16,6 +16,7 @@ gradio>=5.0.0  # Latest Gradio version
 # React backend API
 flask>=3.0.0
 flask-cors>=5.0.0
+flask-limiter>=3.5.0
 
 # Data processing and visualization
 matplotlib>=3.9.0
