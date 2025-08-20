@@ -8,7 +8,8 @@ import {
   Settings,
   Brain,
   Target,
-  BarChart3
+  BarChart3,
+  Code
 } from 'lucide-react';
 import CodeBlock from '../components/CodeBlock';
 
