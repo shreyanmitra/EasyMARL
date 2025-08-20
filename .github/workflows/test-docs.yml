@@ -1,26 +1,15 @@
-name: Deploy EasyMARL Documentation
+name: Test Documentation Build
 
 on:
-  push:
+  pull_request:
     branches: [ main, master ]
-
-# Concurrency group to prevent multiple deployments
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
-
-# Add permissions for GitHub Pages deployment
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+    paths: 
+      - 'docs-website/**'
+      - '.github/workflows/**'
 
 jobs:
-  build-and-deploy:
+  test-build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     
     steps:
     - name: Checkout code
@@ -40,16 +29,16 @@ jobs:
         npm install
         echo "✅ Dependencies installed successfully"
 
-    - name: Build documentation site
+    - name: Test build
       run: |
         cd docs-website
-        echo "🔨 Building documentation site..."
-        # Set environment variables for GitHub Pages
+        echo "🔨 Testing documentation site build..."
+        # Set environment variables for testing
         export PUBLIC_URL="/EasyMARL"
         export CI=false
         export GENERATE_SOURCEMAP=false
         npm run build
-        echo "✅ Build completed successfully"
+        echo "✅ Build test completed successfully"
         echo "📁 Build directory contents:"
         ls -la build/
         # Verify critical files exist
@@ -58,15 +47,3 @@ jobs:
           exit 1
         fi
         echo "✅ Build verification passed"
-        
-    - name: Setup Pages
-      uses: actions/configure-pages@v4
-      
-    - name: Upload artifact
-      uses: actions/upload-pages-artifact@v3
-      with:
-        path: 'docs-website/build'
-        
-    - name: Deploy to GitHub Pages
-      id: deployment
-      uses: actions/deploy-pages@v4
