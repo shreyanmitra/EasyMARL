@@ -1,0 +1,62 @@
+name: Deploy EasyMARL Documentation
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+# Add permissions for GitHub Pages deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Install dependencies
+      run: |
+        cd docs-website
+        echo "📦 Installing documentation site dependencies..."
+        echo "📁 Current directory contents:"
+        ls -la
+        npm install
+        echo "✅ Dependencies installed successfully"
+
+    - name: Build documentation site
+      run: |
+        cd docs-website
+        echo "🔨 Building documentation site..."
+        # Set environment variables for GitHub Pages
+        export PUBLIC_URL="/EasyMARL"
+        export CI=false
+        npm run build
+        echo "✅ Build completed successfully"
+        echo "📁 Build directory contents:"
+        ls -la build/
+        
+    - name: Setup Pages
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      uses: actions/configure-pages@v3
+      
+    - name: Upload artifact
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      uses: actions/upload-pages-artifact@v2
+      with:
+        path: 'docs-website/build'
+        
+    - name: Deploy to GitHub Pages
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      id: deployment
+      uses: actions/deploy-pages@v2
