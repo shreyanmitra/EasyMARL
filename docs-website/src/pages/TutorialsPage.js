@@ -2,13 +2,10 @@ import React, { useState } from 'react';
 import { 
   Play, 
   Clock, 
-  User, 
-  Users, 
   Zap, 
   BookOpen, 
   CheckCircle, 
   ArrowRight,
-  Code,
   Monitor,
   Settings,
   TrendingUp,

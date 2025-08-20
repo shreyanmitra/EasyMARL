@@ -5,15 +5,9 @@ import {
   Eye, 
   Star, 
   Clock, 
-  Users, 
-  Zap, 
-  Trophy,
   Settings,
   Brain,
   Target,
-  Code,
-  GitBranch,
-  Cpu,
   BarChart3
 } from 'lucide-react';
 import CodeBlock from '../components/CodeBlock';

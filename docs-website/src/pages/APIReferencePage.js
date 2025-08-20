@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { 
-  Book, 
   Search, 
   ChevronDown, 
   ChevronRight, 
@@ -9,12 +8,8 @@ import {
   Zap, 
   Users,
   Play,
-  FileText,
-  Hash,
   Type,
   ArrowRight,
-  Info,
-  AlertCircle,
   CheckCircle
 } from 'lucide-react';
 import CodeBlock from '../components/CodeBlock';

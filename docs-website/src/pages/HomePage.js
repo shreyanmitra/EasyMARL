@@ -6,7 +6,6 @@ import {
   Zap, 
   Users, 
   Code, 
-  CheckCircle,
   Star,
   TrendingUp,
   Shield,
