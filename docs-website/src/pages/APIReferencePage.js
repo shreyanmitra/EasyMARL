@@ -10,7 +10,8 @@ import {
   Play,
   Type,
   ArrowRight,
-  CheckCircle
+  CheckCircle,
+  Brain
 } from 'lucide-react';
 import CodeBlock from '../components/CodeBlock';
 
