@@ -33,13 +33,16 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: docs-website/package-lock.json
         
     - name: Install dependencies
       run: |
         cd docs-website
-        npm ci
+        if [ -f package.json ]; then
+          npm install
+        else
+          echo "Error: package.json not found in docs-website directory"
+          exit 1
+        fi
         
     - name: Build documentation site
       run: |
