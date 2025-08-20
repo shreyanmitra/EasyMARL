@@ -22,7 +22,7 @@ EasyMARL is a comprehensive, beginner-friendly framework for multi-agent reinfor
 
 ### 🚀 **Research Ready**
 - **20+ MARL Algorithms**: Comprehensive algorithm library
-- **10x Performance**: Enhanced vectorization and JIT compilation
+- **Enhanced Performance**: Vectorized environments and optional JIT compilation
 - **Scalable Architecture**: Handle complex multi-agent scenarios
 - **Professional Logging**: Weights & Biases integration
 
@@ -227,7 +227,7 @@ controller = easymarl.SimpleMultiAgentController(
     env=env,
     algorithm="qmix",
     config=config,
-    use_enhanced_features=True  # Optional 10x speedup
+    use_enhanced_features=True  # Optional performance boost
 )
 ```
 
@@ -257,7 +257,7 @@ controller = easymarl.VectorizedController(
 
 ## 📈 Performance Features
 
-### Enhanced Vectorization (10x Faster)
+### Enhanced Vectorization (Faster Training)
 
 ```python
 # Enable enhanced features for maximum performance
@@ -277,14 +277,14 @@ controller = easymarl.VectorizedController(
 
 ## 📊 Performance Benchmarks
 
-| Environment | Algorithm | Baseline FPS | Enhanced FPS | Speedup |
-|-------------|-----------|--------------|--------------|---------|
-| MultiGrid-Empty-6x6 | QMIX | 120 | 1,200 | 10x |
-| MultiGrid-Empty-8x8 | VDN | 95 | 950 | 10x |
-| MultiGrid-DoorKey-6x6 | COMA | 80 | 800 | 10x |
-| MultiGrid-Maze-8x8 | MADDPG | 65 | 650 | 10x |
+| Environment | Algorithm | Vectorized Envs | Performance Benefit |
+|-------------|-----------|-----------------|-------------------|
+| MultiGrid-Empty-6x6 | QMIX | 8 parallel | ~8x faster sampling |
+| MultiGrid-Empty-8x8 | VDN | 8 parallel | ~8x faster sampling |
+| MultiGrid-DoorKey-6x6 | COMA | 8 parallel | ~8x faster sampling |
+| MultiGrid-Maze-8x8 | MADDPG | 8 parallel | ~8x faster sampling |
 
-*Benchmarks on Intel i7-10700K, NVIDIA RTX 3080*
+*Speedup from running 8 environments in parallel vs single environment*
 
 ## 🛠️ Installation Options
 

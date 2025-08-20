@@ -139,9 +139,9 @@ print(f"8x speedup achieved with vectorized environments!")`;
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
               {[
                 { number: '20+', label: 'MARL Algorithms' },
-                { number: '1K+', label: 'GitHub Stars' },
-                { number: '100+', label: 'Research Papers' },
-                { number: '50+', label: 'Contributors' }
+                { number: '3', label: 'Deployment Methods' },
+                { number: '12+', label: 'Environments' },
+                { number: '1', label: 'Core Maintainer' }
               ].map((stat, index) => (
                 <div key={index} className="text-center">
                   <div className="text-3xl md:text-4xl font-bold gradient-text">{stat.number}</div>
@@ -278,8 +278,8 @@ print(f"8x speedup achieved with vectorized environments!")`;
               Ready to Start Your MARL Journey?
             </h2>
             <p className="text-xl mb-8 opacity-90">
-              Join thousands of researchers and developers using EasyMARL to push 
-              the boundaries of multi-agent reinforcement learning.
+              Join the growing community of researchers and developers using EasyMARL to advance 
+              multi-agent reinforcement learning research and education.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
