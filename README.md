@@ -21,10 +21,11 @@ EasyMARL is a comprehensive, beginner-friendly framework for multi-agent reinfor
 - **Algorithm Comparisons**: Side-by-side performance analysis
 
 ### 🚀 **Research Ready**
-- **20+ MARL Algorithms**: Comprehensive algorithm library
-- **Enhanced Performance**: Vectorized environments and optional JIT compilation
-- **Scalable Architecture**: Handle complex multi-agent scenarios
-- **Professional Logging**: Weights & Biases integration
+- **🧠 21+ MARL Algorithms**: All algorithms comprehensively implemented in a single unified framework
+- **📚 Single Algorithm Library**: All state-of-the-art algorithms organized by taxonomy in [`algorithms/__init__.py`](algorithms/__init__.py)
+- **🔬 Enhanced Performance**: Vectorized environments and optional JIT compilation
+- **📈 Scalable Architecture**: Handle complex multi-agent scenarios
+- **📊 Professional Logging**: Weights & Biases integration
 
 ### 🎮 **Rich Environment Support**
 - **MultiGrid Environments**: 12+ cooperative and competitive scenarios
@@ -151,7 +152,16 @@ easymarl-train --algorithm qmix --env MultiGrid-Empty-6x6-v0 --episodes 1000
 easymarl-demo
 ```
 
-## 📚 Implemented Algorithms
+## 🧠 Complete Algorithm Library - All 21+ Algorithms in One Framework
+
+> **🎯 Unique Feature**: All MARL algorithms are implemented in a **single unified framework** with consistent APIs, comprehensive documentation, and taxonomical organization in [`algorithms/__init__.py`](algorithms/__init__.py)
+
+**� What Makes Our Algorithm Library Special:**
+- ✅ **Unified Implementation**: All algorithms share the same base architecture
+- ✅ **Taxonomical Organization**: Algorithms organized by their fundamental principles  
+- ✅ **Comprehensive Comments**: Every single line of algorithm code is documented
+- ✅ **Educational Progression**: Beginner → Intermediate → Advanced learning path
+- ✅ **Research Ready**: Production-quality implementations with latest optimizations
 
 ### Value-Based Methods
 

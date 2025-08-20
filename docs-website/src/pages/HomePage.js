@@ -17,8 +17,8 @@ const HomePage = () => {
   const features = [
     {
       icon: Zap,
-      title: '20+ MARL Algorithms',
-      description: 'From IPPO to QMIX, MADDPG to MAPPO - all the state-of-the-art algorithms implemented and ready to use.',
+      title: '21+ MARL Algorithms in One Framework',
+      description: 'Complete algorithm library from IPPO to QMIX, MADDPG to MAVEN - all unified in a single codebase with consistent APIs and comprehensive documentation.',
       gradient: 'from-blue-500 to-cyan-500'
     },
     {
