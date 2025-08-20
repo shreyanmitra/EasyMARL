@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { PlayIcon, StopIcon, DownloadIcon } from '@heroicons/react/outline';
+import { PlayIcon, StopIcon, DownloadIcon, VideoCameraIcon } from '@heroicons/react/outline';
 import toast from 'react-hot-toast';
 import TrainingChart from '../components/TrainingChart';
 import EnvironmentVisualizer from '../components/EnvironmentVisualizer';
@@ -19,6 +19,7 @@ import { trainingAPI } from '../services/api';
 const TrainingPage = () => {
   // Training state management
   const [isTraining, setIsTraining] = useState(false);
+  const [sessionId, setSessionId] = useState(null);
   const [trainingData, setTrainingData] = useState({
     episodes: [],
     rewards: [],
@@ -79,6 +80,7 @@ const TrainingPage = () => {
       const response = await trainingAPI.startTraining(config);
       
       if (response.success) {
+        setSessionId(response.sessionId || Date.now().toString()); // Fallback session ID
         // Start polling for training updates
         pollTrainingProgress();
       } else {
@@ -160,6 +162,46 @@ const TrainingPage = () => {
     URL.revokeObjectURL(url);
     
     toast.success('Training data downloaded!');
+  };
+
+  /**
+   * Download training video
+   * Same functionality as Python GUI video download feature
+   */
+  const downloadTrainingVideo = async () => {
+    if (!sessionId) {
+      toast.error('No training session found');
+      return;
+    }
+
+    try {
+      toast.loading('Generating training video...');
+      
+      // Get video information first
+      const videoInfo = await trainingAPI.getTrainingVideo(sessionId);
+      
+      if (videoInfo.success) {
+        // Download the video file
+        const videoBlob = await trainingAPI.downloadTrainingVideo(sessionId);
+        
+        const url = URL.createObjectURL(videoBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `easymarl_training_video_${config.algorithm}_${Date.now()}.mp4`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        toast.dismiss();
+        toast.success('Training video downloaded!');
+      } else {
+        throw new Error(videoInfo.error || 'Failed to generate video');
+      }
+    } catch (error) {
+      toast.dismiss();
+      toast.error(`Video download failed: ${error.message}`);
+    }
   };
 
   return (
@@ -324,13 +366,25 @@ const TrainingPage = () => {
               )}
 
               {trainingData.episodes.length > 0 && (
-                <button
-                  onClick={downloadTrainingData}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center space-x-2 transition-colors"
-                >
-                  <DownloadIcon className="h-5 w-5" />
-                  <span>📊 Download Data</span>
-                </button>
+                <>
+                  <button
+                    onClick={downloadTrainingData}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center space-x-2 transition-colors"
+                  >
+                    <DownloadIcon className="h-5 w-5" />
+                    <span>📊 Download Data</span>
+                  </button>
+                  
+                  {sessionId && (
+                    <button
+                      onClick={downloadTrainingVideo}
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-4 rounded-lg flex items-center justify-center space-x-2 transition-colors"
+                    >
+                      <VideoCameraIcon className="h-5 w-5" />
+                      <span>🎥 Download Video</span>
+                    </button>
+                  )}
+                </>
               )}
             </div>
 

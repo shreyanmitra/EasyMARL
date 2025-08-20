@@ -540,10 +540,15 @@ results = controller.train(total_episodes=1000)`
                     <BookOpen className="w-4 h-4" />
                     <span>Read Paper</span>
                   </a>
-                  <button className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 rounded-lg hover:shadow-lg transition-all duration-300">
+                  <a
+                    href={`https://github.com/shreyanmitra/EasyMARL/tree/main/algorithms`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 rounded-lg hover:shadow-lg transition-all duration-300"
+                  >
                     <Code className="w-4 h-4" />
-                    <span>Try Example</span>
-                  </button>
+                    <span>View Code</span>
+                  </a>
                 </div>
               </div>
             </div>

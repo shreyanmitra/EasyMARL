@@ -17,20 +17,20 @@ const HomePage = () => {
   const features = [
     {
       icon: Zap,
-      title: '21+ MARL Algorithms in One Framework',
-      description: 'Complete algorithm library from IPPO to QMIX, MADDPG to MAVEN - all unified in a single codebase with consistent APIs and comprehensive documentation.',
+      title: '21+ MARL Algorithms for Discrete MultiGrid',
+      description: 'Complete algorithm library specialized for discrete action MultiGrid environments - from IPPO to QMIX, MADDPG to MAVEN, all optimized for grid-based multi-agent tasks.',
       gradient: 'from-blue-500 to-cyan-500'
     },
     {
       icon: Users,
-      title: 'Beginner-Friendly',
-      description: 'Start with simple demos, progress to research-grade implementations. Perfect for learning MARL.',
+      title: 'Educational MARL Framework',
+      description: 'Perfect for students and researchers learning MARL. Start with simple grid environments, progress to complex coordination tasks with step-by-step tutorials.',
       gradient: 'from-purple-500 to-pink-500'
     },
     {
       icon: Code,
-      title: 'Research-Ready',
-      description: 'Unified controller with 8x vectorized speedup, experiment tracking, performance monitoring, and educational features.',
+      title: 'Discrete Action Research-Ready',
+      description: 'Optimized for discrete MultiGrid environments with vectorized training, custom neural networks, and comprehensive experiment tracking.',
       gradient: 'from-green-500 to-teal-500'
     },
     {
@@ -110,9 +110,9 @@ print(f"8x speedup achieved with vectorized environments!")`;
               <span className="gradient-text">EasyMARL</span>
             </h1>
             <p className="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto">
-              The most comprehensive Multi-Agent Reinforcement Learning framework.
+              Educational Multi-Agent Reinforcement Learning framework for discrete MultiGrid environments.
               <br />
-              <span className="font-semibold text-gray-800">Learn, Research, and Deploy MARL algorithms with ease.</span>
+              <span className="font-semibold text-gray-800">21+ algorithms, custom networks, perfect for students and researchers.</span>
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">

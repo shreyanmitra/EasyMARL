@@ -79,7 +79,7 @@ print(f"Training completed! Mean reward: {metrics['mean_reward']}")`;
           <div className="bg-white p-6 rounded-lg shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300">
             <Code className="w-8 h-8 text-orange-500 mb-4" />
             <h3 className="text-lg font-semibold mb-2">Examples</h3>
-            <p className="text-gray-600 text-sm mb-4">Ready-to-run examples and use cases.</p>
+            <p className="text-gray-600 text-sm mb-4">Code examples and implementation patterns.</p>
             <button className="text-orange-500 font-medium text-sm flex items-center space-x-1">
               <span>View examples</span>
               <ArrowRight className="w-4 h-4" />

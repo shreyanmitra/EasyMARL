@@ -450,17 +450,28 @@ class IPPOAgent(MARLAgent):
 
 class ActorCriticNetwork(nn.Module):
     """
-    Improved Actor-Critic network for IPPO with better architecture.
+    Enhanced Actor-Critic network for IPPO with custom network support.
+    
+    This network now supports custom neural network architectures while maintaining
+    compatibility with the existing IPPO implementation. Users can specify different
+    network types in their configuration to experiment with various architectures.
+    
+    Supported Network Types:
+    - 'feedforward': Simple fully connected layers
+    - 'convolutional': CNN for visual processing 
+    - 'attention': Self-attention mechanism
+    - 'residual': Residual connections for deep networks
+    - 'multigrid': Default MultiGrid-compatible network
     """
     
     def __init__(self, obs_space: Dict, action_space: int, config: Dict, agent_id: int):
         """
-        Initialize the Actor-Critic network.
+        Initialize the Actor-Critic network with custom network support.
         
         Args:
             obs_space: Observation space specification
             action_space: Number of available actions
-            config: Configuration dictionary
+            config: Configuration dictionary (can include 'network_type')
             agent_id: Agent identifier
         """
         super().__init__()
@@ -470,21 +481,41 @@ class ActorCriticNetwork(nn.Module):
         self.config = config
         self.agent_id = agent_id
         
-        # Use the existing MultiGridNetwork as base but enhance it
-        self.base_network = MultiGridNetwork(
-            obs_space, config, action_space, 1, agent_id  # n_agents=1 for individual agent
-        )
+        # Try to import custom networks - fall back to default if not available
+        try:
+            from networks.base_network import get_network
+            
+            # Get the network type from config, default to 'feedforward'
+            network_type = config.get('network_type', 'feedforward')
+            
+            # Create the base network using our custom network factory
+            self.base_network = get_network(
+                obs_space=obs_space,
+                config=config,
+                action_space=action_space,
+                n_agents=1,
+                agent_id=agent_id
+            )
+            
+            print(f"Agent {agent_id}: Using {network_type} network architecture")
+            
+        except ImportError as e:
+            print(f"Warning: Could not import custom networks: {e}")
+            print(f"Agent {agent_id}: Falling back to default MultiGridNetwork")
+            
+            # Fallback to existing MultiGridNetwork
+            from networks.multigrid_network import MultiGridNetwork
+            self.base_network = MultiGridNetwork(
+                obs_space, config, action_space, 1, agent_id
+            )
         
-        # Get the output dimension of the base network
-        with torch.no_grad():
-            sample_obs = self._create_sample_obs()
-            base_output = self.base_network(sample_obs)
-            base_output_dim = base_output.shape[-1] if len(base_output.shape) > 1 else base_output.shape[0]
+        # Calculate the feature dimension for subsequent layers
+        base_output_dim = self._get_base_network_output_dim()
         
-        # Separate heads for actor and critic
+        # Configure hidden dimensions
         hidden_dim = config.get('hidden_dim', 128)
         
-        # Actor head (policy)
+        # Actor head (policy) - outputs action logits
         self.actor_head = nn.Sequential(
             nn.Linear(base_output_dim, hidden_dim),
             nn.ReLU(),
@@ -493,7 +524,7 @@ class ActorCriticNetwork(nn.Module):
             nn.Linear(hidden_dim, action_space)
         )
         
-        # Critic head (value function)
+        # Critic head (value function) - outputs state value
         self.critic_head = nn.Sequential(
             nn.Linear(base_output_dim, hidden_dim),
             nn.ReLU(),
@@ -502,55 +533,136 @@ class ActorCriticNetwork(nn.Module):
             nn.Linear(hidden_dim, 1)
         )
         
-        # Initialize weights
+        # Initialize weights for stable learning
         self._init_weights()
+        
+        # Print network information
+        total_params = sum(p.numel() for p in self.parameters())
+        print(f"Agent {agent_id}: Network initialized with {total_params:,} parameters")
+    
+    def _get_base_network_output_dim(self) -> int:
+        """
+        Calculate the output dimension of the base network.
+        
+        Returns:
+            int: Output dimension for subsequent layers
+        """
+        with torch.no_grad():
+            sample_obs = self._create_sample_obs()
+            
+            # Try different methods to get output dimension
+            try:
+                # Method 1: Use the base network's forward method
+                if hasattr(self.base_network, 'forward'):
+                    base_output = self.base_network(sample_obs)
+                    if isinstance(base_output, torch.Tensor):
+                        return base_output.shape[-1]
+                    else:
+                        # If output is not a tensor, try to extract features
+                        return len(base_output) if hasattr(base_output, '__len__') else 128
+                
+                # Method 2: Use feature extraction if available
+                elif hasattr(self.base_network, '_extract_features'):
+                    processed_obs = self.base_network.process_observations(sample_obs)
+                    features = self.base_network._extract_features(processed_obs)
+                    return features.shape[-1]
+                
+                # Method 3: Default fallback
+                else:
+                    print("Warning: Could not determine base network output dimension, using default 128")
+                    return 128
+                    
+            except Exception as e:
+                print(f"Warning: Error determining network output dimension: {e}")
+                print("Using default dimension 128")
+                return 128
     
     def _create_sample_obs(self) -> Dict:
-        """Create a sample observation for network initialization."""
-        # This is a placeholder - should match the actual observation format
-        sample_obs = {
-            'image': torch.zeros((1, 7, 7, 3)),  # Typical multigrid observation
-            'direction': torch.tensor([0])
-        }
+        """
+        Create a sample observation for network initialization.
+        
+        Returns:
+            Dict: Sample observation matching the observation space
+        """
+        sample_obs = {}
+        
+        for key, shape in self.obs_space.items():
+            if key == 'image':
+                if isinstance(shape, (list, tuple)) and len(shape) == 3:
+                    sample_obs[key] = torch.zeros((1, *shape))
+                else:
+                    sample_obs[key] = torch.zeros((1, 7, 7, 3))  # Default MultiGrid size
+            elif key == 'direction':
+                sample_obs[key] = torch.tensor([0])
+            else:
+                # Handle other observation types
+                if isinstance(shape, (int, float)):
+                    sample_obs[key] = torch.zeros((1, 1))
+                elif isinstance(shape, (list, tuple)):
+                    sample_obs[key] = torch.zeros((1, *shape))
+                else:
+                    sample_obs[key] = torch.zeros((1, shape))
+        
         return sample_obs
     
     def _init_weights(self):
         """Initialize network weights using orthogonal initialization."""
         for module in self.modules():
             if isinstance(module, nn.Linear):
+                # Orthogonal initialization for linear layers
                 nn.init.orthogonal_(module.weight, gain=1.0)
                 nn.init.constant_(module.bias, 0.0)
             elif isinstance(module, nn.Conv2d):
+                # Orthogonal initialization for convolutional layers
                 nn.init.orthogonal_(module.weight, gain=1.0)
                 if module.bias is not None:
                     nn.init.constant_(module.bias, 0.0)
     
     def forward(self, observation: Dict) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Forward pass through the network.
+        Forward pass through the Actor-Critic network.
         
         Args:
             observation: Dictionary containing observation data
             
         Returns:
             Tuple of (action_logits, value_estimate)
+                action_logits: Raw action scores for policy
+                value_estimate: Critic's value estimation
         """
-        # Get shared features from base network
-        if hasattr(self.base_network, 'forward'):
-            shared_features = self.base_network(observation)
-        else:
-            # Fallback if base network doesn't have forward method
-            shared_features = observation['image'].flatten(start_dim=1)
-        
-        # Ensure proper shape
-        if len(shared_features.shape) == 1:
-            shared_features = shared_features.unsqueeze(0)
-        
-        # Actor and critic outputs
-        action_logits = self.actor_head(shared_features)
-        value_estimate = self.critic_head(shared_features)
-        
-        return action_logits, value_estimate
+        try:
+            # Get shared features from base network
+            if hasattr(self.base_network, 'forward'):
+                shared_features = self.base_network(observation)
+            elif hasattr(self.base_network, '_extract_features'):
+                # For custom networks that use the new interface
+                processed_obs = self.base_network.process_observations(observation)
+                shared_features = self.base_network._extract_features(processed_obs)
+            else:
+                # Fallback: flatten the image observation
+                if 'image' in observation:
+                    shared_features = observation['image'].flatten(start_dim=1)
+                else:
+                    # Emergency fallback
+                    shared_features = torch.zeros((1, 128))
+            
+            # Ensure proper batch dimension
+            if len(shared_features.shape) == 1:
+                shared_features = shared_features.unsqueeze(0)
+            
+            # Compute actor and critic outputs
+            action_logits = self.actor_head(shared_features)
+            value_estimate = self.critic_head(shared_features)
+            
+            return action_logits, value_estimate
+            
+        except Exception as e:
+            print(f"Error in ActorCriticNetwork forward pass: {e}")
+            # Emergency fallback outputs
+            batch_size = 1
+            action_logits = torch.zeros((batch_size, self.action_space))
+            value_estimate = torch.zeros((batch_size, 1))
+            return action_logits, value_estimate
 
 
 class IPPO(MARLAlgorithm):

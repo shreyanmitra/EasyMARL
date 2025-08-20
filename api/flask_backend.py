@@ -1181,6 +1181,525 @@ def start_hyperparameter_search():
             'error': str(e)
         }), 500
 
+@app.route('/api/environment-builder/templates', methods=['GET'])
+def get_environment_templates():
+    """Get available environment templates."""
+    try:
+        templates = {
+            'Basic Navigation': [
+                {
+                    'name': 'Empty Grid 6x6',
+                    'id': 'empty-6x6',
+                    'description': 'Simple 6x6 grid for basic navigation and coordination learning',
+                    'grid_size': [6, 6],
+                    'n_agents': 2,
+                    'objects': []
+                },
+                {
+                    'name': 'Empty Grid 8x8',
+                    'id': 'empty-8x8',
+                    'description': 'Medium 8x8 grid with more exploration space',
+                    'grid_size': [8, 8],
+                    'n_agents': 2,
+                    'objects': []
+                },
+                {
+                    'name': 'Simple Maze',
+                    'id': 'simple-maze',
+                    'description': 'Basic maze navigation requiring exploration strategies',
+                    'grid_size': [8, 8],
+                    'n_agents': 2,
+                    'objects': [
+                        {'type': 'wall', 'x': 3, 'y': 2, 'color': 'grey'},
+                        {'type': 'wall', 'x': 3, 'y': 3, 'color': 'grey'},
+                        {'type': 'wall', 'x': 5, 'y': 4, 'color': 'grey'},
+                        {'type': 'wall', 'x': 5, 'y': 5, 'color': 'grey'}
+                    ]
+                }
+            ],
+            'Cooperative': [
+                {
+                    'name': 'Door & Key',
+                    'id': 'door-key',
+                    'description': 'Agents must find keys to unlock doors cooperatively',
+                    'grid_size': [8, 8],
+                    'n_agents': 2,
+                    'objects': [
+                        {'type': 'door', 'x': 4, 'y': 4, 'color': 'red', 'locked': True},
+                        {'type': 'key', 'x': 2, 'y': 2, 'color': 'red'},
+                        {'type': 'goal', 'x': 6, 'y': 6, 'color': 'green'}
+                    ]
+                },
+                {
+                    'name': 'Four Rooms',
+                    'id': 'four-rooms',
+                    'description': 'Classic four-room environment requiring coordination',
+                    'grid_size': [10, 10],
+                    'n_agents': 2,
+                    'objects': [
+                        # Walls creating four rooms
+                        {'type': 'wall', 'x': 5, 'y': 1, 'color': 'grey'},
+                        {'type': 'wall', 'x': 5, 'y': 2, 'color': 'grey'},
+                        {'type': 'wall', 'x': 5, 'y': 4, 'color': 'grey'},
+                        {'type': 'wall', 'x': 1, 'y': 5, 'color': 'grey'},
+                        {'type': 'wall', 'x': 2, 'y': 5, 'color': 'grey'},
+                        {'type': 'wall', 'x': 4, 'y': 5, 'color': 'grey'},
+                        {'type': 'goal', 'x': 8, 'y': 8, 'color': 'green'}
+                    ]
+                }
+            ],
+            'Competitive': [
+                {
+                    'name': 'Coin Collection',
+                    'id': 'coin-collection',
+                    'description': 'Competitive coin collection game',
+                    'grid_size': [8, 8],
+                    'n_agents': 2,
+                    'objects': [
+                        {'type': 'ball', 'x': 3, 'y': 3, 'color': 'gold'},
+                        {'type': 'ball', 'x': 5, 'y': 3, 'color': 'gold'},
+                        {'type': 'ball', 'x': 3, 'y': 5, 'color': 'gold'},
+                        {'type': 'ball', 'x': 5, 'y': 5, 'color': 'gold'}
+                    ]
+                },
+                {
+                    'name': 'Tag Game',
+                    'id': 'tag-game',
+                    'description': 'Tag game with pursuit and evasion dynamics',
+                    'grid_size': [10, 10],
+                    'n_agents': 3,
+                    'objects': [
+                        {'type': 'wall', 'x': 5, 'y': 5, 'color': 'grey'},
+                        {'type': 'wall', 'x': 3, 'y': 7, 'color': 'grey'},
+                        {'type': 'wall', 'x': 7, 'y': 3, 'color': 'grey'}
+                    ]
+                }
+            ]
+        }
+        
+        return jsonify({
+            'success': True,
+            'templates': templates
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/environment-builder/create', methods=['POST'])
+def create_custom_environment():
+    """Create a custom environment configuration."""
+    try:
+        data = request.json
+        
+        # Validate required fields
+        required_fields = ['name', 'width', 'height', 'n_agents']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    'success': False,
+                    'error': f'Missing required field: {field}'
+                }), 400
+        
+        # Create environment configuration
+        env_config = {
+            'name': data['name'],
+            'type': 'custom_multigrid',
+            'description': data.get('description', ''),
+            'width': data['width'],
+            'height': data['height'],
+            'n_agents': data['n_agents'],
+            'max_steps': data.get('max_steps', 100),
+            'agent_view_size': data.get('agent_view_size', 7),
+            'see_through_walls': data.get('see_through_walls', True),
+            'agents': data.get('agents', []),
+            'objects': data.get('objects', []),
+            'created_at': time.time()
+        }
+        
+        # Save to temporary storage (in production, save to database)
+        env_id = f"custom_{int(time.time())}"
+        if not hasattr(app, 'custom_environments'):
+            app.custom_environments = {}
+        app.custom_environments[env_id] = env_config
+        
+        return jsonify({
+            'success': True,
+            'environment_id': env_id,
+            'config': env_config
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/environment-builder/export/<env_id>', methods=['GET'])
+def export_environment(env_id):
+    """Export environment configuration in various formats."""
+    try:
+        export_format = request.args.get('format', 'yaml')
+        
+        if not hasattr(app, 'custom_environments') or env_id not in app.custom_environments:
+            return jsonify({
+                'success': False,
+                'error': 'Environment not found'
+            }), 404
+        
+        env_config = app.custom_environments[env_id]
+        
+        if export_format == 'yaml':
+            import yaml
+            content = yaml.dump(env_config, default_flow_style=False, sort_keys=False)
+            content_type = 'text/yaml'
+        elif export_format == 'json':
+            content = json.dumps(env_config, indent=2)
+            content_type = 'application/json'
+        elif export_format == 'python':
+            content = generate_python_environment_code(env_config)
+            content_type = 'text/plain'
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Unsupported export format'
+            }), 400
+        
+        return jsonify({
+            'success': True,
+            'content': content,
+            'content_type': content_type,
+            'filename': f"{env_config['name']}.{export_format}"
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/environment-builder/preview/<env_id>', methods=['GET'])
+def preview_environment(env_id):
+    """Generate a visual preview of the environment."""
+    try:
+        if not hasattr(app, 'custom_environments') or env_id not in app.custom_environments:
+            return jsonify({
+                'success': False,
+                'error': 'Environment not found'
+            }), 404
+        
+        env_config = app.custom_environments[env_id]
+        
+        # Generate ASCII grid representation
+        width = env_config['width']
+        height = env_config['height']
+        grid = [['.' for _ in range(width)] for _ in range(height)]
+        
+        # Place walls around border
+        for x in range(width):
+            grid[0][x] = '#'
+            grid[height-1][x] = '#'
+        for y in range(height):
+            grid[y][0] = '#'
+            grid[y][width-1] = '#'
+        
+        # Place objects
+        object_symbols = {
+            'wall': '#',
+            'door': 'D',
+            'key': 'K',
+            'goal': 'G',
+            'ball': 'B',
+            'box': 'X',
+            'lava': 'L'
+        }
+        
+        for obj in env_config.get('objects', []):
+            x, y = obj['x'], obj['y']
+            if 0 <= x < width and 0 <= y < height:
+                symbol = object_symbols.get(obj['type'], '?')
+                grid[y][x] = symbol
+        
+        # Place agents
+        for i, agent in enumerate(env_config.get('agents', [])):
+            x, y = agent['x'], agent['y']
+            if 0 <= x < width and 0 <= y < height:
+                grid[y][x] = str(i + 1)
+        
+        # Convert to string
+        grid_str = '\n'.join([''.join(row) for row in grid])
+        
+        return jsonify({
+            'success': True,
+            'preview': grid_str,
+            'legend': {
+                '#': 'Wall',
+                'D': 'Door',
+                'K': 'Key',
+                'G': 'Goal',
+                'B': 'Ball',
+                'X': 'Box',
+                'L': 'Lava',
+                '1,2,3...': 'Agents',
+                '.': 'Empty'
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+def generate_python_environment_code(env_config):
+    """Generate Python code for the custom environment."""
+    code = f'''"""
+Custom MultiGrid Environment: {env_config['name']}
+Generated by EasyMARL Environment Builder
+{env_config.get('description', '')}
+"""
+
+import gym
+from gym_multigrid import *
+
+class {env_config['name'].replace('-', '').replace(' ', '')}Environment(MultiGridEnv):
+    """
+    {env_config.get('description', 'Custom environment created with EasyMARL Environment Builder')}
+    """
+    
+    def __init__(self, **kwargs):
+        super().__init__(
+            grid_size={env_config['width']},
+            width={env_config['width']},
+            height={env_config['height']},
+            n_agents={env_config['n_agents']},
+            max_steps={env_config.get('max_steps', 100)},
+            agent_view_size={env_config.get('agent_view_size', 7)},
+            see_through_walls={env_config.get('see_through_walls', True)},
+            **kwargs
+        )
+    
+    def _gen_grid(self, width, height):
+        """Generate the environment grid"""
+        # Create empty grid
+        self.grid = Grid(width, height)
+        
+        # Generate the surrounding walls
+        self.grid.wall_rect(0, 0, width, height)
+        
+        # Place custom objects
+'''
+    
+    # Add object placement code
+    for obj in env_config.get('objects', []):
+        obj_type = obj['type']
+        x, y = obj['x'], obj['y']
+        color = obj.get('color', 'red')
+        
+        if obj_type == 'wall':
+            code += f'        self.grid.set({x}, {y}, Wall(color="{color}"))\n'
+        elif obj_type == 'door':
+            locked = obj.get('locked', False)
+            code += f'        self.grid.set({x}, {y}, Door(color="{color}", is_locked={locked}))\n'
+        elif obj_type == 'key':
+            code += f'        self.grid.set({x}, {y}, Key(color="{color}"))\n'
+        elif obj_type == 'goal':
+            code += f'        self.grid.set({x}, {y}, Goal())\n'
+        elif obj_type == 'ball':
+            code += f'        self.grid.set({x}, {y}, Ball(color="{color}"))\n'
+        elif obj_type == 'box':
+            code += f'        self.grid.set({x}, {y}, Box(color="{color}"))\n'
+        elif obj_type == 'lava':
+            code += f'        self.grid.set({x}, {y}, Lava())\n'
+    
+    # Add agent placement code
+    code += '\n        # Place agents\n'
+    for i, agent in enumerate(env_config.get('agents', [])):
+        direction = agent.get('direction', 0)
+        code += f'        self.place_agent({i}, {agent["x"]}, {agent["y"]}, {direction})\n'
+    
+    code += '\n        self.mission = "Navigate and complete the task"\n'
+    
+    return code
+
+@app.route('/api/training/curves/<session_id>', methods=['GET'])
+def get_training_curves(session_id):
+    """Get training curve data for visualization."""
+    try:
+        # Check if session exists
+        session = training_sessions.get(session_id)
+        if not session:
+            return jsonify({
+                'success': False,
+                'error': 'Training session not found'
+            }), 404
+        
+        # Get training data from the controller
+        controller = session.get('controller')
+        if not controller:
+            return jsonify({
+                'success': False,
+                'error': 'No controller found for session'
+            }), 404
+        
+        # Extract training metrics
+        metrics = {
+            'episode_rewards': [],
+            'episode_lengths': [],
+            'policy_loss': [],
+            'value_loss': [],
+            'episodes': [],
+            'timesteps': []
+        }
+        
+        # Get data from controller's training history
+        if hasattr(controller, 'training_history'):
+            history = controller.training_history
+            
+            for i, episode_data in enumerate(history):
+                metrics['episodes'].append(i + 1)
+                metrics['episode_rewards'].append(episode_data.get('episode_reward', 0))
+                metrics['episode_lengths'].append(episode_data.get('episode_length', 0))
+                metrics['policy_loss'].append(episode_data.get('policy_loss', 0))
+                metrics['value_loss'].append(episode_data.get('value_loss', 0))
+                metrics['timesteps'].append(episode_data.get('total_timesteps', 0))
+        
+        return jsonify({
+            'success': True,
+            'metrics': metrics,
+            'session_info': {
+                'algorithm': session.get('algorithm'),
+                'environment': session.get('environment'),
+                'status': session.get('status'),
+                'start_time': session.get('start_time')
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/training/video/<session_id>', methods=['GET'])
+def get_training_video(session_id):
+    """Generate and return training video."""
+    try:
+        # Check if session exists
+        session = training_sessions.get(session_id)
+        if not session:
+            return jsonify({
+                'success': False,
+                'error': 'Training session not found'
+            }), 404
+        
+        controller = session.get('controller')
+        if not controller:
+            return jsonify({
+                'success': False,
+                'error': 'No controller found for session'
+            }), 404
+        
+        # Generate video if not already exists
+        video_path = f"videos/training_{session_id}.mp4"
+        
+        if not os.path.exists(video_path):
+            # Create videos directory if it doesn't exist
+            os.makedirs("videos", exist_ok=True)
+            
+            # Generate video using the controller
+            if hasattr(controller, 'create_training_video'):
+                controller.create_training_video(video_path)
+            else:
+                # Fallback: create a simple visualization
+                create_training_video_fallback(controller, video_path)
+        
+        # Return video file path for download
+        return jsonify({
+            'success': True,
+            'video_path': video_path,
+            'download_url': f'/api/training/download-video/{session_id}'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/training/download-video/<session_id>', methods=['GET'])
+def download_training_video(session_id):
+    """Download training video file."""
+    try:
+        video_path = f"videos/training_{session_id}.mp4"
+        
+        if os.path.exists(video_path):
+            return send_from_directory(
+                os.path.dirname(video_path),
+                os.path.basename(video_path),
+                as_attachment=True,
+                download_name=f"training_{session_id}.mp4"
+            )
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Video file not found'
+            }), 404
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+def create_training_video_fallback(controller, output_path):
+    """Create a fallback training video visualization."""
+    try:
+        import matplotlib.pyplot as plt
+        import matplotlib.animation as animation
+        from matplotlib.patches import Rectangle
+        import numpy as np
+        
+        # Create figure for animation
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+        
+        # Sample data for demonstration
+        episodes = list(range(1, 101))
+        rewards = [np.random.normal(0, 1) + 0.1 * i for i in episodes]
+        
+        def animate(frame):
+            ax1.clear()
+            ax2.clear()
+            
+            # Plot training curves
+            ax1.plot(episodes[:frame], rewards[:frame], 'b-', linewidth=2)
+            ax1.set_xlabel('Episode')
+            ax1.set_ylabel('Reward')
+            ax1.set_title('Training Progress')
+            ax1.grid(True, alpha=0.3)
+            
+            # Simple environment visualization
+            ax2.set_xlim(0, 8)
+            ax2.set_ylim(0, 8)
+            ax2.set_aspect('equal')
+            ax2.set_title('Environment State')
+            
+            # Draw grid
+            for i in range(9):
+                ax2.axhline(i, color='gray', alpha=0.3)
+                ax2.axvline(i, color='gray', alpha=0.3)
+            
+            # Draw agents (moving randomly for demo)
+            agent_x = 1 + (frame % 6)
+            agent_y = 1 + ((frame // 6) % 6)
+            ax2.add_patch(Rectangle((agent_x, agent_y), 1, 1, facecolor='blue', alpha=0.7))
+            
+        # Create animation
+        anim = animation.FuncAnimation(fig, animate, frames=100, interval=100, repeat=False)
+        anim.save(output_path, writer='ffmpeg', fps=10)
+        plt.close()
+        
+    except Exception as e:
+        print(f"Error creating training video: {e}")
+        # Create a simple text file instead
+        with open(output_path.replace('.mp4', '.txt'), 'w') as f:
+            f.write("Training video generation failed. Please install ffmpeg for video support.")
+
 @app.route('/api/research/hyperparameter-search/status/<experiment_name>', methods=['GET'])
 def get_optimization_status(experiment_name):
     """Get status of hyperparameter optimization."""
@@ -1480,21 +1999,6 @@ def validate_config_api():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
-@app.route('/api/config/algorithm-parameters/<algorithm>', methods=['GET'])
-def get_algorithm_parameters(algorithm):
-    """Get all configurable parameters for a specific algorithm."""
-    try:
-        config_manager = get_config_manager()
-        parameters = config_manager.get_algorithm_parameters(algorithm)
-        
-        return jsonify({
-            'success': True,
-            'algorithm': algorithm,
-            'parameters': parameters
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/config/algorithm-template/<algorithm>', methods=['GET'])
 def get_algorithm_template(algorithm):

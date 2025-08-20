@@ -126,9 +126,22 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "easymarl-gui=easymarl:launch_gui",
-            "easymarl-train=easymarl.main:cli_main",
-            "easymarl-demo=easymarl.examples.demo:main"
+            # Main CLI commands
+            "easymarl-train=cli.main_cli:train_main",
+            "easymarl-gui=cli.main_cli:gui_main", 
+            "easymarl-demo=cli.main_cli:demo_main",
+            
+            # Weights & Biases integration
+            "easymarl-wandb=cli.wandb_cli:wandb_main",
+            
+            # Environment management
+            "easymarl-env=cli.env_cli:env_main",
+            
+            # Algorithm management  
+            "easymarl-algo=cli.algo_cli:algo_main",
+            
+            # Legacy compatibility (kept for backward compatibility)
+            "easymarl=cli.main_cli:train_main"
         ]
     },
     keywords=[

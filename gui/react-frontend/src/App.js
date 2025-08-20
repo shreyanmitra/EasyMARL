@@ -10,6 +10,7 @@ import HelpPage from './pages/HelpPage';
 import TutorialPage from './pages/TutorialPage';
 import ResearchPage from './pages/ResearchPage';
 import ManualControl from './components/ManualControl';
+import EnvironmentBuilder from './components/EnvironmentBuilder';
 import './App.css';
 
 /**
@@ -41,6 +42,9 @@ function App() {
             
             {/* Manual Control Page - Interactive Environment Control */}
             <Route path="/manual-control" element={<ManualControl />} />
+            
+            {/* Environment Builder Page - Create Custom Environments */}
+            <Route path="/environment-builder" element={<EnvironmentBuilder />} />
             
             {/* Algorithms Page - Browse and Learn About Algorithms */}
             <Route path="/algorithms" element={<AlgorithmsPage />} />

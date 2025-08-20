@@ -7,6 +7,7 @@ import AlgorithmsPage from './pages/AlgorithmsPage';
 import TutorialsPage from './pages/TutorialsPage';
 import ExamplesPage from './pages/ExamplesPage';
 import APIReferencePage from './pages/APIReferencePage';
+import ComparisonPage from './pages/ComparisonPage';
 import Footer from './components/Footer';
 import ScrollIndicator from './components/ScrollIndicator';
 import './index.css';
@@ -25,6 +26,7 @@ function App() {
             <Route path="/tutorials" element={<TutorialsPage />} />
             <Route path="/examples" element={<ExamplesPage />} />
             <Route path="/api" element={<APIReferencePage />} />
+            <Route path="/comparison" element={<ComparisonPage />} />
           </Routes>
         </main>
         <Footer />

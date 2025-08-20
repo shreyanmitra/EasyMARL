@@ -108,9 +108,13 @@ Repository = "https://github.com/shreyanmitra/EasyMARL.git"
 Demo = "https://shreyanmitra.github.io/EasyMARL"
 
 [project.scripts]
-easymarl-gui = "easymarl.gui:main"
-easymarl-train = "easymarl.main:main"
-easymarl-demo = "easymarl.examples.demo:main"
+easymarl-train = "cli.main_cli:train_main"
+easymarl-gui = "cli.main_cli:gui_main" 
+easymarl-demo = "cli.main_cli:demo_main"
+easymarl-wandb = "cli.wandb_cli:wandb_main"
+easymarl-env = "cli.env_cli:env_main"
+easymarl-algo = "cli.algo_cli:algo_main"
+easymarl = "cli.main_cli:train_main"
 
 [tool.setuptools]
 packages = ["easymarl"]
@@ -125,8 +129,3 @@ easymarl = [
     "react-frontend/build/**/*",
     "react-frontend/public/**/*"
 ]
-
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["easymarl*"]
-exclude = ["tests*", "docs*"]

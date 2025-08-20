@@ -29,6 +29,9 @@ from .algorithms import *
 from .controllers import *
 from .environments import *
 
+# Import CLI components
+from .cli import *
+
 # GUI launcher function
 def launch_gui(port=7860, share=False, educational_mode=True):
     """

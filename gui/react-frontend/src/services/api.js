@@ -6,24 +6,33 @@
  * bridges the React frontend with the existing Python controllers.
  */
 
-// Configure API base URL for different deployment environments
+// Configure API base URL for local and Codespaces environments only
 const getApiBaseUrl = () => {
-  // Production deployment URLs
+  // Check if running in GitHub Codespaces
+  const hostname = window.location.hostname;
+  
+  if (hostname.includes('app.github.dev')) {
+    // Extract codespace name from frontend URL
+    const codespaceName = hostname.split('-')[0];
+    const backendUrl = `https://${codespaceName}-5000.app.github.dev/api`;
+    console.log('🎓 Running in Codespaces, using backend:', backendUrl);
+    return backendUrl;
+  }
+  
+  // Custom API URL via environment variable (for local development)
   if (process.env.REACT_APP_API_URL) {
     return process.env.REACT_APP_API_URL;
   }
   
-  // Vercel deployment
-  if (process.env.NODE_ENV === 'production') {
-    // Your actual Vercel deployment URL
-    return 'https://easy-marl.vercel.app/api';
-  }
-  
-  // Local development
+  // Local development fallback
   return 'http://localhost:5000/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();
+
+// Check if running in demo/read-only mode
+const DEMO_MODE = process.env.REACT_APP_DEMO_MODE === 'true';
+const READ_ONLY = process.env.REACT_APP_READ_ONLY === 'true';
 
 class TrainingAPI {
   /**
@@ -158,6 +167,48 @@ class TrainingAPI {
       return await response.blob();
     } catch (error) {
       console.error('Error downloading training data:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get training video information
+   * 
+   * @param {string} sessionId - Training session ID
+   * @returns {Promise<Object>} Video information with download URL
+   */
+  async getTrainingVideo(sessionId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/training/video/${sessionId}`);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error getting training video:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Download training video
+   * 
+   * @param {string} sessionId - Training session ID
+   * @returns {Promise<Blob>} Video blob
+   */
+  async downloadTrainingVideo(sessionId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/training/download-video/${sessionId}`);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.blob();
+    } catch (error) {
+      console.error('Error downloading training video:', error);
       throw error;
     }
   }

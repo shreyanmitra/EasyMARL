@@ -23,6 +23,7 @@ EasyMARL is a comprehensive, beginner-friendly framework for multi-agent reinfor
 ### 🚀 **Research Ready**
 - **🧠 21+ MARL Algorithms**: All algorithms comprehensively implemented in a single unified framework
 - **📚 Single Algorithm Library**: All state-of-the-art algorithms organized by taxonomy in [`algorithms/__init__.py`](algorithms/__init__.py)
+- **🧠 Custom Neural Networks**: 4 built-in architectures (FeedForward, CNN, Attention, Residual) + custom network support
 - **🔬 Enhanced Performance**: Vectorized environments and optional JIT compilation
 - **📈 Scalable Architecture**: Handle complex multi-agent scenarios
 - **📊 Professional Logging**: Weights & Biases integration
@@ -225,6 +226,45 @@ easymarl-demo
 | **Maze** | 6x6, 8x8 | 2-4 | ⭐⭐⭐ | Complex maze navigation |
 | **CoinGame** | Variable | 2 | ⭐⭐⭐⭐ | Competitive coin collection |
 | **Gather** | Variable | 2-8 | ⭐⭐⭐ | Resource gathering cooperation |
+
+## 🧠 Custom Neural Networks
+
+EasyMARL supports flexible custom neural network architectures that work with all algorithms:
+
+### Built-in Network Types
+
+| Network Type | Best For | Key Features |
+|--------------|----------|--------------|
+| **FeedForward** | Baselines, simple tasks | Multi-layer perceptron, configurable depth |
+| **Convolutional** | Visual environments | CNN layers, spatial processing |
+| **Attention** | Coordination, complex reasoning | Self-attention, positional encoding |
+| **Residual** | Deep learning, stability | Skip connections, batch normalization |
+
+### Usage Examples
+
+```python
+# Use convolutional network for visual tasks
+config = {
+    'network_type': 'convolutional',
+    'conv_layers': [32, 64, 128],
+    'hidden_dim': 256
+}
+
+# Use attention network for coordination
+config = {
+    'network_type': 'attention', 
+    'num_heads': 8,
+    'attention_dim': 128
+}
+
+# Create custom network
+config = {
+    'network_type': 'my_networks.CustomNetwork',
+    'custom_param': 'value'
+}
+```
+
+**📖 [Full Custom Networks Guide](networks/README.md)** | **🔧 [Example Script](examples/demo_custom_networks.py)**
 
 ## 🏗️ Framework Architecture
 

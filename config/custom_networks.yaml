@@ -1,0 +1,235 @@
+# EasyMARL Custom Network Configuration Examples
+#
+# This file demonstrates how to configure different custom neural networks
+# for your MARL algorithms. All networks work with MultiGrid environments
+# and are compatible with all EasyMARL algorithms.
+
+# =============================================================================
+# BASIC CONFIGURATION
+# =============================================================================
+
+# Default configuration - uses simple feedforward network
+basic_config:
+  network_type: "feedforward"
+  hidden_dim: 128
+  learning_rate: 0.0003
+  gamma: 0.99
+  
+  # Feedforward network specific settings
+  num_layers: 3
+  activation: "relu"
+  use_dropout: false
+  use_batch_norm: false
+
+# =============================================================================
+# VISUAL PROCESSING CONFIGURATION 
+# =============================================================================
+
+# Convolutional network - best for visual environments
+visual_config:
+  network_type: "convolutional"
+  hidden_dim: 256
+  learning_rate: 0.0003
+  gamma: 0.99
+  
+  # CNN specific settings
+  conv_layers: [32, 64, 128]    # Number of filters in each conv layer
+  kernel_sizes: [3, 3, 3]       # Kernel size for each layer  
+  strides: [1, 1, 1]            # Stride for each layer
+  use_pooling: true             # Use max pooling between layers
+  pool_size: 2                  # Pool size for max pooling
+
+# =============================================================================
+# ATTENTION-BASED CONFIGURATION
+# =============================================================================
+
+# Attention network - for complex spatial reasoning
+attention_config:
+  network_type: "attention"
+  hidden_dim: 256
+  learning_rate: 0.0002
+  gamma: 0.99
+  
+  # Attention specific settings
+  num_heads: 8                  # Number of attention heads
+  attention_dim: 128            # Attention embedding dimension
+  num_attention_layers: 2       # Number of attention layers
+  use_positional_encoding: true # Add positional encoding
+
+# =============================================================================
+# DEEP NETWORK CONFIGURATION
+# =============================================================================
+
+# Residual network - for deep feature learning
+deep_config:
+  network_type: "residual"
+  hidden_dim: 256
+  learning_rate: 0.0001
+  gamma: 0.99
+  
+  # Residual network specific settings
+  num_blocks: 4                 # Number of residual blocks
+  block_layers: 2               # Layers per residual block
+  use_batch_norm: true          # Batch normalization
+  use_dropout: true             # Dropout for regularization
+  dropout_rate: 0.1             # Dropout probability
+
+# =============================================================================
+# ALGORITHM-SPECIFIC CONFIGURATIONS
+# =============================================================================
+
+# IPPO with convolutional network
+ippo_visual:
+  algorithm: "ippo"
+  network_type: "convolutional"
+  
+  # IPPO specific settings
+  rollout_length: 128
+  ppo_epochs: 4
+  mini_batch_size: 64
+  clip_epsilon: 0.2
+  value_loss_coef: 0.5
+  entropy_coef: 0.01
+  
+  # Network settings
+  hidden_dim: 256
+  conv_layers: [32, 64, 64]
+  use_pooling: true
+
+# QMIX with attention network  
+qmix_attention:
+  algorithm: "qmix"
+  network_type: "attention"
+  
+  # QMIX specific settings
+  buffer_size: 50000
+  batch_size: 32
+  target_update_freq: 100
+  epsilon_start: 1.0
+  epsilon_end: 0.05
+  epsilon_decay: 0.995
+  
+  # Network settings
+  hidden_dim: 128
+  num_heads: 4
+  attention_dim: 64
+  num_attention_layers: 1
+
+# MADDPG with residual networks
+maddpg_deep:
+  algorithm: "maddpg"
+  network_type: "residual"
+  
+  # MADDPG specific settings
+  buffer_size: 100000
+  batch_size: 64
+  actor_lr: 0.0001
+  critic_lr: 0.0001
+  tau: 0.01
+  
+  # Network settings
+  hidden_dim: 256
+  num_blocks: 3
+  use_batch_norm: true
+  use_dropout: false
+
+# =============================================================================
+# ENVIRONMENT-SPECIFIC CONFIGURATIONS
+# =============================================================================
+
+# Cooperative tasks - emphasis on coordination
+cooperative_config:
+  network_type: "attention"      # Good for coordination
+  hidden_dim: 256
+  num_heads: 8
+  attention_dim: 128
+  learning_rate: 0.0003
+  gamma: 0.99
+
+# Competitive tasks - emphasis on individual performance  
+competitive_config:
+  network_type: "convolutional"  # Good for individual spatial reasoning
+  hidden_dim: 256
+  conv_layers: [64, 128, 256]
+  learning_rate: 0.0003
+  gamma: 0.95                    # Slightly more short-term focused
+
+# Large-scale tasks - computational efficiency
+scalable_config:
+  network_type: "feedforward"    # Most efficient
+  hidden_dim: 128
+  num_layers: 2                  # Shallow for speed
+  learning_rate: 0.001
+  gamma: 0.99
+
+# =============================================================================
+# CUSTOM USER NETWORK CONFIGURATION
+# =============================================================================
+
+# Example: Using a custom user-defined network
+custom_network_config:
+  # Specify custom network as module.class
+  network_type: "my_networks.CustomMultiGridNetwork" 
+  
+  # Your custom network will receive these parameters in config
+  hidden_dim: 256
+  custom_param_1: 42
+  custom_param_2: "special_mode"
+  
+  # Standard training parameters
+  learning_rate: 0.0003
+  gamma: 0.99
+
+# =============================================================================
+# HYPERPARAMETER TUNING CONFIGURATIONS
+# =============================================================================
+
+# Small network for fast experimentation
+small_experiment:
+  network_type: "feedforward"
+  hidden_dim: 64
+  num_layers: 2
+  learning_rate: 0.001
+  rollout_length: 64
+  
+# Large network for final performance
+large_production:
+  network_type: "residual"
+  hidden_dim: 512
+  num_blocks: 6
+  block_layers: 3
+  learning_rate: 0.00001
+  rollout_length: 256
+  
+# =============================================================================
+# USAGE EXAMPLES
+# =============================================================================
+
+# Example 1: Python script configuration
+"""
+from core.config_manager import ConfigManager
+
+# Load a specific configuration
+config = ConfigManager.load_config('config/custom_networks.yaml')['visual_config']
+
+# Run IPPO with convolutional network
+from algorithms.model_free.policy_based.discrete_action.ippo import IPPO
+algorithm = IPPO(env, config, device)
+"""
+
+# Example 2: Command line usage
+"""
+python main.py --config config/custom_networks.yaml --config_name visual_config --env MultiGrid-Empty-8x8-v0
+"""
+
+# Example 3: Programmatic configuration
+"""
+config = {
+    'network_type': 'attention',
+    'hidden_dim': 256,
+    'num_heads': 8,
+    'attention_dim': 128,
+    'learning_rate': 0.0003,
+    'gamma': 0.99
+}
+"""

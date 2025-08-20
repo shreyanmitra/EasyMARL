@@ -14,6 +14,7 @@ const Navbar = () => {
     { path: '/', label: '🏠 Home', desc: 'Overview' },
     { path: '/training', label: '🚀 Training', desc: 'Start Training' },
     { path: '/manual-control', label: '🎮 Manual Control', desc: 'Interactive Control' },
+    { path: '/environment-builder', label: '🏗️ Environment Builder', desc: 'Create Environments' },
     { path: '/algorithms', label: '🧠 Algorithms', desc: 'Browse Algorithms' },
     { path: '/research', label: '🔬 Research', desc: 'Advanced Tools' },
     { path: '/tutorial', label: '📚 Tutorial', desc: 'Learn MARL' },

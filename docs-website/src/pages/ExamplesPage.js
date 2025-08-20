@@ -9,7 +9,8 @@ import {
   Brain,
   Target,
   BarChart3,
-  Code
+  Code,
+  Github
 } from 'lucide-react';
 import CodeBlock from '../components/CodeBlock';
 
@@ -583,7 +584,7 @@ print(f"   Latency range: {stats['min_inference_time']*1000:.2f}-{stats['max_inf
             <span className="gradient-text">Code Examples</span>
           </h1>
           <p className="text-xl text-gray-600 max-w-4xl mx-auto mb-8">
-            Ready-to-run code examples for every MARL use case. From simple quickstarts to advanced 
+            Complete code examples for every MARL use case. From simple quickstarts to advanced 
             production deployments, find the perfect starting point for your project.
           </p>
         </div>
@@ -771,10 +772,15 @@ print(f"   Latency range: {stats['min_inference_time']*1000:.2f}-{stats['max_inf
                 <Download className="w-4 h-4" />
                 <span>Download Code</span>
               </button>
-              <button className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
-                <PlayCircle className="w-4 h-4" />
-                <span>Run Example</span>
-              </button>
+              <a
+                href="https://github.com/shreyanmitra/EasyMARL"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <Github className="w-4 h-4" />
+                <span>View on GitHub</span>
+              </a>
               <button 
                 onClick={() => setSelectedExample(null)}
                 className="flex items-center space-x-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"

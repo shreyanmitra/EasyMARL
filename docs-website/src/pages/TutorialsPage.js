@@ -575,6 +575,475 @@ advanced_controller = UnifiedMultiAgentController(
       }
     },
     {
+      id: 'environment-builder',
+      title: 'Environment Builder Guide',
+      level: 'Intermediate',
+      duration: '25 minutes',
+      icon: <Settings className="w-6 h-6" />,
+      description: 'Create custom MultiGrid environments with the visual Environment Builder.',
+      objectives: [
+        'Use the GUI Environment Builder',
+        'Design custom grid layouts',
+        'Configure agents and objects',
+        'Export environments for training'
+      ],
+      content: {
+        steps: [
+          {
+            title: 'Launching the Environment Builder',
+            code: `# Method 1: Through the Web GUI
+python gui/gradio_interface.py
+# Navigate to "Environment Builder" tab
+# Click "Launch Full Environment Builder"
+
+# Method 2: Direct launch
+python gui/environment_builder.py
+# Opens on http://localhost:7861`,
+            explanation: 'The Environment Builder provides a visual interface for creating custom MultiGrid environments. Launch it through the main GUI or directly.'
+          },
+          {
+            title: 'Grid Designer Interface',
+            code: `# Tools available in the Grid Designer:
+# - Wall placement tool
+# - Door and key objects
+# - Goal and collectible items
+# - Agent starting positions
+# - Grid size adjustment (5x5 to 20x20)
+
+# Click on grid cells to place objects
+# Use the tool palette to select object types
+# Configure colors and properties`,
+            explanation: 'The Grid Designer tab lets you visually create environments by clicking to place objects. Select tools from the left panel and click on grid cells.'
+          },
+          {
+            title: 'Environment Configuration',
+            code: `# Environment settings you can configure:
+config = {
+    'name': 'My-Custom-Environment',
+    'width': 10,
+    'height': 10,
+    'n_agents': 3,
+    'max_steps': 200,
+    'agent_view_size': 7,
+    'see_through_walls': True,
+    'description': 'Custom cooperative navigation task'
+}`,
+            explanation: 'Configure environment parameters like grid size, number of agents, episode length, and agent observation settings.'
+          },
+          {
+            title: 'Agent Setup',
+            code: `# Configure each agent:
+agents = [
+    {'x': 1, 'y': 1, 'direction': 'right'},   # Agent 1
+    {'x': 8, 'y': 1, 'direction': 'down'},    # Agent 2  
+    {'x': 1, 'y': 8, 'direction': 'up'}       # Agent 3
+]
+
+# Directions: 'right', 'down', 'left', 'up'
+# Positions: (x, y) coordinates on the grid`,
+            explanation: 'Set starting positions and initial orientations for each agent. The Agent Setup tab provides sliders and dropdowns for easy configuration.'
+          },
+          {
+            title: 'Object Placement',
+            code: `# Available object types:
+objects = [
+    {'type': 'wall', 'x': 5, 'y': 5, 'color': 'grey'},
+    {'type': 'door', 'x': 3, 'y': 7, 'color': 'red', 'locked': True},
+    {'type': 'key', 'x': 2, 'y': 2, 'color': 'red'},
+    {'type': 'goal', 'x': 9, 'y': 9, 'color': 'green'},
+    {'type': 'ball', 'x': 6, 'y': 3, 'color': 'blue'},
+    {'type': 'box', 'x': 4, 'y': 6, 'color': 'brown'},
+    {'type': 'lava', 'x': 7, 'y': 4, 'color': 'orange'}
+]`,
+            explanation: 'Place various objects to create interesting environments. Walls block movement, doors require keys, goals provide rewards, and lava creates hazards.'
+          },
+          {
+            title: 'Using Templates',
+            code: `# Load pre-built templates as starting points:
+
+# Basic Navigation Templates:
+# - Empty Grid: Simple navigation and coordination
+# - Simple Maze: Basic pathfinding challenges
+# - Open Field: Large exploration spaces
+
+# Cooperative Templates:
+# - Door & Key: Agents must find keys to unlock doors
+# - Collect & Deliver: Gather items and bring to goals
+# - Team Navigation: Navigate together through obstacles
+
+# Competitive Templates:
+# - Coin Collection: Compete for limited resources
+# - Tag Game: Pursuit and evasion dynamics
+# - Territory Control: Control areas of the grid`,
+            explanation: 'Start with templates and modify them for your needs. Templates provide proven environment designs for different types of multi-agent challenges.'
+          },
+          {
+            title: 'Exporting Environments',
+            code: `# Export as YAML configuration:
+environment:
+  name: My-Custom-Environment
+  type: custom_multigrid
+  width: 10
+  height: 10
+  n_agents: 3
+  max_steps: 200
+
+# Export as Python code:
+class MyCustomEnvironment(MultiGridEnv):
+    def _gen_grid(self, width, height):
+        # Generated environment code
+        self.grid = Grid(width, height)
+        # Object placement code...
+
+# Export as JSON data:
+{
+  "environment_config": {...},
+  "agents": [...],
+  "objects": [...]
+}`,
+            explanation: 'Export your environment in multiple formats. YAML for configuration files, Python for custom environment classes, or JSON for data exchange.'
+          },
+          {
+            title: 'Training with Custom Environments',
+            code: `# After exporting, use your environment for training:
+from easymarl.controllers import UnifiedMultiAgentController
+
+# Load from YAML config
+controller = UnifiedMultiAgentController()
+controller.train(
+    env_config='my_custom_environment.yaml',
+    algorithm='IPPO',
+    total_timesteps=1000000
+)
+
+# Or use the generated Python class
+from my_environments import MyCustomEnvironment
+
+controller.train(
+    env_name='MyCustomEnvironment',
+    algorithm='QMIX',
+    total_timesteps=500000
+)`,
+            explanation: 'Once exported, your custom environment can be used just like built-in environments. Train any algorithm on your custom design.'
+          }
+        ],
+        tips: [
+          'Start with templates and modify them gradually',
+          'Test your environment with different algorithms',
+          'Use the preview feature to verify object placement',
+          'Save multiple versions to compare designs',
+          'Consider agent capabilities when placing objects'
+        ],
+        troubleshooting: [
+          'If agents spawn inside walls, adjust their starting positions',
+          'Ensure doors have corresponding keys of the same color',
+          'Large grids may require longer training times',
+          'Check that goals are reachable from starting positions'
+        ]
+      }
+    },
+    {
+      id: 'custom-networks',
+      title: 'Custom Neural Networks',
+      level: 'Intermediate',
+      duration: '45 minutes',
+      icon: <Brain className="w-6 h-6" />,
+      description: 'Learn to use and create custom neural network architectures for all MARL algorithms.',
+      objectives: [
+        'Use built-in network architectures',
+        'Understand NetworkFactory system',
+        'Create custom network classes',
+        'Optimize networks for specific tasks'
+      ],
+      content: {
+        introduction: `
+EasyMARL provides a flexible neural network system that works with all 21+ algorithms. 
+You can choose from 4 built-in architectures or create your own custom networks.
+
+**Built-in Networks:**
+• **FeedForward**: Simple fully-connected layers for baseline experiments
+• **Convolutional**: CNN architectures optimized for MultiGrid visual processing  
+• **Attention**: Self-attention networks for complex coordination tasks
+• **Residual**: Deep networks with skip connections for stable training
+
+**Key Benefits:**
+• Universal compatibility with all algorithms
+• MultiGrid environment optimization
+• Easy configuration via YAML or Python
+• Research-ready implementations with proper initialization
+        `,
+        examples: [
+          {
+            title: 'Using Built-in Networks',
+            code: `# Choose network architecture in your algorithm configuration
+from easymarl import UnifiedMultiAgentController
+
+# 1. Feedforward Network (fastest, good for baselines)
+config_ff = {
+    'network_type': 'feedforward',
+    'hidden_dim': 128,
+    'num_layers': 3,
+    'activation': 'relu',
+    'use_dropout': False
+}
+
+# 2. Convolutional Network (best for visual MultiGrid environments)
+config_cnn = {
+    'network_type': 'convolutional', 
+    'conv_layers': [32, 64, 128],     # Filter sizes
+    'kernel_sizes': [3, 3, 3],        # Kernel sizes
+    'use_pooling': True,              # Max pooling
+    'hidden_dim': 256
+}
+
+# 3. Attention Network (best for agent coordination)
+config_attn = {
+    'network_type': 'attention',
+    'num_heads': 8,                   # Multi-head attention
+    'attention_dim': 128,             # Attention embedding size
+    'num_attention_layers': 2,        # Attention depth
+    'use_positional_encoding': True   # Spatial awareness
+}
+
+# 4. Residual Network (best for complex/deep learning)
+config_res = {
+    'network_type': 'residual',
+    'num_blocks': 4,                  # Residual blocks
+    'block_layers': 2,                # Layers per block
+    'use_batch_norm': True,           # Batch normalization
+    'use_dropout': True,              # Regularization
+    'hidden_dim': 256
+}
+
+# Use with any algorithm
+controller = UnifiedMultiAgentController(
+    env_name='MultiGrid-Complex-12x12',
+    algorithm='qmix',  # Works with all algorithms!
+    config=config_cnn  # Choose your network
+)`,
+            explanation: 'EasyMARL provides 4 built-in network architectures that work seamlessly with all algorithms. Choose based on your task requirements.'
+          },
+          {
+            title: 'NetworkFactory Direct Usage',
+            code: `# Advanced: Direct NetworkFactory usage for research
+from networks.base_network import NetworkFactory
+
+# MultiGrid observation space
+obs_space = {
+    'image': (7, 7, 3),    # Grid visual state
+    'direction': 4         # Agent direction
+}
+
+# Create different networks for comparison
+networks = {}
+configs = {
+    'simple': {'network_type': 'feedforward', 'hidden_dim': 64},
+    'visual': {'network_type': 'convolutional', 'conv_layers': [32, 64]},
+    'complex': {'network_type': 'attention', 'num_heads': 4}
+}
+
+for name, config in configs.items():
+    network = NetworkFactory.create_network(
+        network_type=config['network_type'],
+        obs_space=obs_space,
+        config=config,
+        action_space=6  # MultiGrid has 6 actions
+    )
+    
+    # Analyze network
+    param_count = sum(p.numel() for p in network.parameters())
+    networks[name] = {
+        'network': network,
+        'parameters': param_count
+    }
+    
+    print(f"{name}: {param_count:,} parameters")
+
+# Compare forward pass speeds
+import torch
+import time
+
+sample_obs = {
+    'image': torch.randn(32, 7, 7, 3),    # Batch of 32
+    'direction': torch.randint(0, 4, (32,))
+}
+
+for name, net_info in networks.items():
+    network = net_info['network']
+    network.eval()
+    
+    # Benchmark
+    start_time = time.time()
+    with torch.no_grad():
+        for _ in range(100):
+            output = network(sample_obs)
+    
+    avg_time = (time.time() - start_time) / 100
+    print(f"{name}: {avg_time*1000:.2f}ms per forward pass")`,
+            explanation: 'NetworkFactory allows direct network creation for research applications, performance comparisons, and architecture analysis.'
+          },
+          {
+            title: 'Creating Custom Networks',
+            code: `# Create your own network architecture
+from networks.base_network import MultiGridCompatibleNetwork
+import torch.nn as nn
+import torch.nn.functional as F
+
+class MyResearchNetwork(MultiGridCompatibleNetwork):
+    """
+    Custom network combining CNN and attention for MultiGrid.
+    Perfect example for research experimentation.
+    """
+    
+    def __init__(self, obs_space, config, action_space, n_agents=1, agent_id=0):
+        super().__init__(obs_space, config, action_space, n_agents, agent_id)
+    
+    def _build_network(self):
+        """Build hybrid CNN + Attention architecture."""
+        
+        # CNN for spatial processing
+        self.cnn = nn.Sequential(
+            nn.Conv2d(self.image_channels, 32, 3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, 3, padding=1),
+            nn.ReLU(),
+            nn.AdaptiveAvgPool2d((4, 4))  # Reduce to 4x4
+        )
+        
+        # Attention for sequence processing  
+        self.attention = nn.MultiheadAttention(
+            embed_dim=64,
+            num_heads=8,
+            batch_first=True
+        )
+        
+        # Final layers
+        cnn_output_size = 64 * 4 * 4  # 64 channels * 4x4 spatial
+        direction_size = 1 if self.has_direction else 0
+        
+        self.final_layers = nn.Sequential(
+            nn.Linear(cnn_output_size + direction_size, 256),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, self.action_space)
+        )
+    
+    def forward(self, observations):
+        """Custom forward pass."""
+        processed_obs = self.process_observations(observations)
+        
+        # CNN processing
+        image = processed_obs['image']
+        if len(image.shape) == 4 and image.shape[-1] == 3:
+            image = image.permute(0, 3, 1, 2)  # BHWC -> BCHW
+        
+        cnn_features = self.cnn(image)
+        cnn_features = cnn_features.flatten(start_dim=1)
+        
+        # Attention processing (treat flattened CNN as sequence)
+        cnn_seq = cnn_features.unsqueeze(1)  # Add sequence dimension
+        attn_features, _ = self.attention(cnn_seq, cnn_seq, cnn_seq)
+        attn_features = attn_features.squeeze(1)  # Remove sequence dimension
+        
+        # Combine with direction
+        features = [attn_features]
+        if 'direction' in processed_obs:
+            direction = processed_obs['direction'].float().unsqueeze(-1)
+            features.append(direction)
+        
+        combined_features = torch.cat(features, dim=-1)
+        
+        # Final output
+        return self.final_layers(combined_features)
+
+# Save your network in my_networks.py and use it:
+controller = UnifiedMultiAgentController(
+    env_name='MultiGrid-FourRooms-12x12',
+    algorithm='ippo',
+    config={
+        'network_type': 'my_networks.MyResearchNetwork',
+        'hidden_dim': 256,
+        'learning_rate': 0.0003
+    }
+)
+
+print("Training with custom hybrid CNN+Attention network!")
+controller.train(episodes=1000)`,
+            explanation: 'Create sophisticated custom networks by combining different architectural elements. This example shows a hybrid CNN+Attention network for research.'
+          },
+          {
+            title: 'Network Configuration Best Practices',
+            code: `# Best practices for different scenarios
+
+# 1. SIMPLE ENVIRONMENTS (Empty, DoorKey)
+simple_config = {
+    'network_type': 'feedforward',
+    'hidden_dim': 64,          # Smaller networks work fine
+    'num_layers': 2,           # Shallow networks sufficient
+    'learning_rate': 0.001     # Can use higher learning rates
+}
+
+# 2. VISUAL ENVIRONMENTS (Cluttered, FourRooms)  
+visual_config = {
+    'network_type': 'convolutional',
+    'conv_layers': [32, 64, 64],    # Multiple conv layers
+    'hidden_dim': 256,              # Larger hidden layers
+    'use_pooling': True,            # Reduce spatial dimensions
+    'learning_rate': 0.0003         # Lower learning rate for stability
+}
+
+# 3. COORDINATION TASKS (Multi-agent cooperation)
+coordination_config = {
+    'network_type': 'attention',
+    'num_heads': 8,                 # More attention heads
+    'attention_dim': 128,           # Rich attention representation
+    'use_positional_encoding': True, # Spatial awareness
+    'hidden_dim': 256,
+    'learning_rate': 0.0001         # Very low LR for attention
+}
+
+# 4. COMPLEX/LARGE ENVIRONMENTS
+complex_config = {
+    'network_type': 'residual',
+    'num_blocks': 6,                # Deeper networks
+    'block_layers': 3,              # More layers per block
+    'use_batch_norm': True,         # Essential for deep networks
+    'use_dropout': True,            # Prevent overfitting
+    'dropout_rate': 0.1,
+    'hidden_dim': 512,              # Large capacity
+    'learning_rate': 0.00001        # Very low LR for stability
+}
+
+# Choose based on your environment complexity
+env_configs = {
+    'MultiGrid-Empty-6x6': simple_config,
+    'MultiGrid-Cluttered-15x15': visual_config, 
+    'MultiGrid-FourRooms-19x19': coordination_config,
+    'MultiGrid-Complex-Custom': complex_config
+}
+
+# Automatic configuration selection
+def get_recommended_config(env_name):
+    if 'Empty' in env_name or 'DoorKey' in env_name:
+        return simple_config
+    elif 'Cluttered' in env_name:
+        return visual_config
+    elif 'FourRooms' in env_name or 'Gather' in env_name:
+        return coordination_config
+    else:
+        return complex_config
+
+# Use recommended configuration
+recommended = get_recommended_config('MultiGrid-Cluttered-15x15')
+print(f"Recommended network: {recommended['network_type']}")`,
+            explanation: 'Choose the right network architecture and hyperparameters based on your environment complexity and task requirements.'
+          }
+        ]
+      }
+    },
+    {
       id: 'custom-algorithms',
       title: 'Creating Custom Algorithms',
       level: 'Advanced',

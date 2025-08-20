@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Github, BookOpen, Zap, Code, Play, FileText } from 'lucide-react';
+import { Menu, X, Github, BookOpen, Zap, Code, Play, FileText, BarChart3 } from 'lucide-react';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -21,6 +21,7 @@ const Navbar = () => {
     { name: 'Tutorials', path: '/tutorials', icon: Play },
     { name: 'Examples', path: '/examples', icon: Code },
     { name: 'API Reference', path: '/api', icon: FileText },
+    { name: 'Comparison', path: '/comparison', icon: BarChart3 },
   ];
 
   return (

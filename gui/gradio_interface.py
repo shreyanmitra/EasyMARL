@@ -91,7 +91,53 @@ EDUCATIONAL_MODE = True
 
 # Supported Multi-Agent Environments
 # These environments are available for training through the GUI interface
-AVAILABLE_ENVS = ["MultiGrid-Cluttered-Fixed-15x15"]
+AVAILABLE_ENVS = [
+    "MultiGrid-Empty-6x6",
+    "MultiGrid-Empty-8x8", 
+    "MultiGrid-Empty-16x16",
+    "MultiGrid-FourRooms-19x19",
+    "MultiGrid-DoorKey-6x6",
+    "MultiGrid-DoorKey-8x8",
+    "MultiGrid-DoorKey-16x16",
+    "MultiGrid-Cluttered-6x6",
+    "MultiGrid-Cluttered-8x8",
+    "MultiGrid-Cluttered-15x15",
+    "MultiGrid-Maze-6x6",
+    "MultiGrid-Maze-8x8",
+    "MultiGrid-CoinGame-8x8",
+    "MultiGrid-Gather-12x12",
+    "MultiGrid-Tag-8x8",
+    "MultiGrid-StagHunt-10x10"
+]
+
+# Environment Categories for Organization
+ENV_CATEGORIES = {
+    "Basic Navigation": ["MultiGrid-Empty-6x6", "MultiGrid-Empty-8x8", "MultiGrid-Empty-16x16"],
+    "Cooperative": ["MultiGrid-FourRooms-19x19", "MultiGrid-DoorKey-6x6", "MultiGrid-DoorKey-8x8", "MultiGrid-DoorKey-16x16"],
+    "Complex Navigation": ["MultiGrid-Cluttered-6x6", "MultiGrid-Cluttered-8x8", "MultiGrid-Cluttered-15x15", "MultiGrid-Maze-6x6", "MultiGrid-Maze-8x8"],
+    "Competitive": ["MultiGrid-CoinGame-8x8", "MultiGrid-Tag-8x8"],
+    "Resource Tasks": ["MultiGrid-Gather-12x12", "MultiGrid-StagHunt-10x10"]
+}
+
+# Environment Descriptions for Educational Purposes
+ENV_DESCRIPTIONS = {
+    "MultiGrid-Empty-6x6": "Simple 6x6 grid for basic navigation and coordination learning",
+    "MultiGrid-Empty-8x8": "Medium 8x8 grid with more exploration space",
+    "MultiGrid-Empty-16x16": "Large 16x16 grid for advanced navigation challenges",
+    "MultiGrid-FourRooms-19x19": "Classic four-room environment requiring coordination",
+    "MultiGrid-DoorKey-6x6": "Agents must find keys to unlock doors cooperatively",
+    "MultiGrid-DoorKey-8x8": "Medium door-key environment with more complexity",
+    "MultiGrid-DoorKey-16x16": "Large door-key environment for advanced cooperation",
+    "MultiGrid-Cluttered-6x6": "Navigate around obstacles in compact space",
+    "MultiGrid-Cluttered-8x8": "Medium cluttered environment with strategic navigation",
+    "MultiGrid-Cluttered-15x15": "Large cluttered environment with complex pathfinding",
+    "MultiGrid-Maze-6x6": "Maze navigation requiring exploration strategies",
+    "MultiGrid-Maze-8x8": "Complex maze with multiple solution paths",
+    "MultiGrid-CoinGame-8x8": "Competitive coin collection game",
+    "MultiGrid-Gather-12x12": "Cooperative resource gathering task",
+    "MultiGrid-Tag-8x8": "Tag game with pursuit and evasion dynamics",
+    "MultiGrid-StagHunt-10x10": "Coordination game inspired by stag hunt dilemma"
+}
 
 # List of all 21+ available MARL algorithms
 # Each algorithm represents a different approach to multi-agent learning
@@ -702,6 +748,85 @@ def download_training_data():
     
     return filepath
 
+def create_training_video():
+    """Create a training video showing agent behavior over time."""
+    try:
+        if not current_training_data["episode_rewards"]:
+            return None
+        
+        import matplotlib.pyplot as plt
+        import matplotlib.animation as animation
+        from matplotlib.patches import Rectangle
+        import numpy as np
+        
+        # Create video directory
+        os.makedirs("videos", exist_ok=True)
+        
+        # Create figure for animation
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+        
+        episodes = current_training_data["episodes"]
+        rewards = current_training_data["episode_rewards"]
+        
+        def animate(frame):
+            ax1.clear()
+            ax2.clear()
+            
+            # Plot training curves up to current frame
+            current_episodes = episodes[:frame+1]
+            current_rewards = rewards[:frame+1]
+            
+            if current_episodes:
+                ax1.plot(current_episodes, current_rewards, 'b-', linewidth=2)
+                ax1.set_xlabel('Episode')
+                ax1.set_ylabel('Reward')
+                ax1.set_title(f'Training Progress - Episode {frame+1}')
+                ax1.grid(True, alpha=0.3)
+                
+                # Set consistent y-axis limits
+                if len(rewards) > 1:
+                    ax1.set_ylim(min(rewards) * 1.1, max(rewards) * 1.1)
+            
+            # Simple environment visualization (placeholder)
+            ax2.set_xlim(0, 8)
+            ax2.set_ylim(0, 8)
+            ax2.set_aspect('equal')
+            ax2.set_title('Environment State')
+            ax2.grid(True, alpha=0.3)
+            
+            # Draw animated agent (moving based on training progress)
+            progress = frame / len(episodes) if episodes else 0
+            agent_x = 1 + 6 * progress
+            agent_y = 4 + 2 * np.sin(progress * 4 * np.pi)
+            
+            ax2.add_patch(Rectangle((agent_x-0.4, agent_y-0.4), 0.8, 0.8, 
+                                  facecolor='blue', alpha=0.8, label='Agent'))
+            ax2.add_patch(Rectangle((7, 7), 0.8, 0.8, 
+                                  facecolor='green', alpha=0.8, label='Goal'))
+            ax2.legend()
+        
+        # Create animation
+        frames = min(len(episodes), 100)  # Limit frames for reasonable file size
+        anim = animation.FuncAnimation(fig, animate, frames=frames, interval=200, repeat=False)
+        
+        # Save video
+        filename = f"training_video_{int(time.time())}.mp4"
+        filepath = os.path.join("videos", filename)
+        
+        try:
+            anim.save(filepath, writer='ffmpeg', fps=5, bitrate=1800)
+        except Exception:
+            # Fallback to GIF if ffmpeg not available
+            filepath = filepath.replace('.mp4', '.gif')
+            anim.save(filepath, writer='pillow', fps=2)
+        
+        plt.close()
+        return filepath
+        
+    except Exception as e:
+        print(f"Error creating training video: {e}")
+        return None
+
 def evaluateModel(env_name, algorithm, model_path):
     """Evaluate a trained model."""
     if not os.path.exists(model_path):
@@ -850,9 +975,12 @@ with gr.Blocks(title="EasyMARL Framework", theme=gr.themes.Soft()) as interface:
                         value=create_training_plot()
                     )
                     
-                    # Download button
+                    # Download buttons
                     download_button = gr.Button("💾 Download Training Data", size="sm")
                     download_file = gr.File(label="Training Data", visible=False)
+                    
+                    video_button = gr.Button("🎥 Create Training Video", size="sm")
+                    video_file = gr.File(label="Training Video", visible=False)
                     
                     # Environment visualization
                     env_image = gr.Image(
@@ -888,6 +1016,11 @@ with gr.Blocks(title="EasyMARL Framework", theme=gr.themes.Soft()) as interface:
             download_button.click(
                 download_training_data,
                 outputs=download_file
+            )
+            
+            video_button.click(
+                create_training_video,
+                outputs=video_file
             )
             
             # Auto-update components every 2 seconds during training
@@ -948,6 +1081,150 @@ with gr.Blocks(title="EasyMARL Framework", theme=gr.themes.Soft()) as interface:
             gr.Markdown("## 🎯 Available MARL Algorithms")
             gr.Markdown("Comprehensive catalog of 21+ state-of-the-art multi-agent reinforcement learning algorithms.")
             
+            # Algorithm selection for detailed info
+            info_algorithm_dropdown = gr.Dropdown(
+                label="Select Algorithm for Details",
+                choices=AVAILABLE_ALGORITHMS,
+                value="qmix"
+            )
+        
+        # Environment Builder Tab
+        with gr.TabItem("🏗️ Environment Builder", id="environment_builder"):
+            gr.Markdown("## 🎨 Custom Environment Creator")
+            gr.Markdown("Design custom MultiGrid environments with an intuitive drag-and-drop interface.")
+            
+            # Import and create the environment builder
+            try:
+                from gui.environment_builder import create_environment_builder
+                env_builder_interface = create_environment_builder()
+                
+                # Embed the environment builder interface
+                with gr.Group():
+                    gr.Markdown("### 🏗️ Environment Designer")
+                    gr.Markdown("Create custom environments by placing objects, configuring agents, and setting parameters.")
+                    
+                    # Environment categories for quick selection
+                    with gr.Row():
+                        with gr.Column(scale=1):
+                            env_category = gr.Dropdown(
+                                choices=list(ENV_CATEGORIES.keys()),
+                                value="Basic Navigation",
+                                label="Environment Category"
+                            )
+                            
+                            selected_env_for_edit = gr.Dropdown(
+                                choices=ENV_CATEGORIES["Basic Navigation"],
+                                label="Environment to Edit",
+                                info="Load an existing environment as a starting point"
+                            )
+                            
+                            load_env_btn = gr.Button("📥 Load Environment", variant="secondary")
+                            
+                        with gr.Column(scale=2):
+                            env_description_display = gr.Markdown(
+                                value="Select an environment to see its description.",
+                                label="Environment Description"
+                            )
+                    
+                    # Quick launch button for the full environment builder
+                    launch_builder_btn = gr.Button(
+                        "🚀 Launch Full Environment Builder", 
+                        variant="primary", 
+                        size="lg"
+                    )
+                    
+                    builder_status = gr.Textbox(
+                        value="Click 'Launch Full Environment Builder' to open the advanced interface in a new tab.",
+                        label="Builder Status",
+                        interactive=False
+                    )
+                    
+                    # Environment preview section
+                    with gr.Row():
+                        with gr.Column():
+                            gr.Markdown("### 📋 Supported Environments")
+                            
+                            # Display all environments organized by category
+                            for category, envs in ENV_CATEGORIES.items():
+                                with gr.Group():
+                                    gr.Markdown(f"**{category}**")
+                                    for env in envs:
+                                        gr.Markdown(f"• {env}: {ENV_DESCRIPTIONS[env]}")
+                        
+                        with gr.Column():
+                            gr.Markdown("### 🎯 Custom Environment Features")
+                            gr.Markdown("""
+                            **Grid Customization:**
+                            - Adjustable grid size (5x5 to 20x20)
+                            - Wall and obstacle placement
+                            - Door and key configurations
+                            
+                            **Agent Configuration:**
+                            - 2-8 agents supported
+                            - Custom starting positions
+                            - Initial orientation settings
+                            
+                            **Object Types:**
+                            - Walls and barriers
+                            - Doors (locked/unlocked)
+                            - Keys (multiple colors)
+                            - Goals and objectives
+                            - Collectible items
+                            - Hazards and obstacles
+                            
+                            **Export Options:**
+                            - YAML configuration files
+                            - Python environment code
+                            - JSON data format
+                            - Training script templates
+                            """)
+                
+                # Event handlers for environment builder
+                def update_env_options(category):
+                    return gr.Dropdown.update(choices=ENV_CATEGORIES[category])
+                
+                def show_env_description(env_name):
+                    if env_name and env_name in ENV_DESCRIPTIONS:
+                        return f"**{env_name}**\n\n{ENV_DESCRIPTIONS[env_name]}"
+                    return "Select an environment to see its description."
+                
+                def launch_environment_builder():
+                    try:
+                        # Launch the environment builder in a new process
+                        import subprocess
+                        subprocess.Popen([
+                            "python", 
+                            os.path.join(os.path.dirname(__file__), "environment_builder.py")
+                        ])
+                        return "Environment Builder launched! Check for a new browser tab on port 7861."
+                    except Exception as e:
+                        return f"Error launching Environment Builder: {str(e)}"
+                
+                # Wire up the event handlers
+                env_category.change(
+                    update_env_options,
+                    inputs=[env_category],
+                    outputs=[selected_env_for_edit]
+                )
+                
+                selected_env_for_edit.change(
+                    show_env_description,
+                    inputs=[selected_env_for_edit],
+                    outputs=[env_description_display]
+                )
+                
+                launch_builder_btn.click(
+                    launch_environment_builder,
+                    outputs=[builder_status]
+                )
+                
+            except ImportError as e:
+                gr.Markdown("### ⚠️ Environment Builder Unavailable")
+                gr.Markdown(f"The Environment Builder module could not be loaded: {str(e)}")
+                gr.Markdown("Please ensure all dependencies are installed.")
+        
+        # Algorithm Information Tab (continued)
+        with gr.TabItem("📚 Algorithm Details", id="algorithm_details"):
             # Algorithm selection for detailed info
             info_algorithm_dropdown = gr.Dropdown(
                 label="Select Algorithm for Details",
