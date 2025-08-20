@@ -251,7 +251,7 @@ class IPPOAgent(MARLAgent):
         return processed
     
     def store_transition(self, observation: Dict, action: int, log_prob: float, 
-                        value: float, reward: float, done: bool):
+                        value: float, reward: float, terminated: bool, truncated: bool = False):
         """
         Store a single experience transition in the agent's memory.
         
@@ -264,18 +264,25 @@ class IPPOAgent(MARLAgent):
             log_prob (float): Log probability of the action under current policy
             value (float): Value estimate of the state
             reward (float): Reward received after taking action
-            done (bool): Whether episode ended after this transition
+            terminated (bool): Whether episode ended naturally (goal/failure)
+            truncated (bool): Whether episode was truncated (time limit)
         
         For Beginners:
         This is like writing in a diary: "In situation X, I did action Y,
-        got reward Z, and the episode ended/continued."
+        got reward Z, and the episode ended naturally/was cut short/continued."
+        
+        Note: The distinction between terminated and truncated is crucial for
+        correct value function bootstrapping in reinforcement learning.
         """
         self.memory['observations'].append(observation)
         self.memory['actions'].append(action)
         self.memory['log_probs'].append(log_prob)
         self.memory['values'].append(value)
         self.memory['rewards'].append(reward)
-        self.memory['dones'].append(done)
+        self.memory['terminated'].append(terminated)
+        self.memory['truncated'].append(truncated)
+        # Keep 'dones' for backward compatibility
+        self.memory['dones'].append(terminated or truncated)
     
     def update(self, next_value: float = 0.0) -> Dict[str, float]:
         """
@@ -308,14 +315,20 @@ class IPPOAgent(MARLAgent):
         old_log_probs = torch.tensor(self.memory['log_probs'], dtype=torch.float32).to(self.device)
         values = torch.tensor(self.memory['values'], dtype=torch.float32).to(self.device)
         rewards = torch.tensor(self.memory['rewards'], dtype=torch.float32).to(self.device)
-        dones = torch.tensor(self.memory['dones'], dtype=torch.float32).to(self.device)
+        
+        # CRITICAL: Use terminated for correct value bootstrapping, not done!
+        # terminated = True means natural episode end (no bootstrap)
+        # terminated = False means continue or time limit (should bootstrap)
+        terminated = torch.tensor(self.memory['terminated'], dtype=torch.float32).to(self.device)
+        dones = torch.tensor(self.memory['dones'], dtype=torch.float32).to(self.device)  # For compatibility
         
         # Compute advantages and returns using Generalized Advantage Estimation (GAE)
         # This estimates "how much better was this action compared to average"
+        # IMPORTANT: Use terminated (not dones) for correct bootstrapping
         next_values = torch.cat([values[1:], torch.tensor([next_value]).to(self.device)])
         advantages = compute_gae(
             rewards.unsqueeze(1), values.unsqueeze(1), next_values.unsqueeze(1),
-            dones.unsqueeze(1), self.gamma, self.lambda_gae
+            terminated.unsqueeze(1), self.gamma, self.lambda_gae  # Use terminated here!
         ).squeeze(1)
         
         # Returns = advantages + baseline values (what we're trying to predict)
@@ -411,7 +424,9 @@ class IPPOAgent(MARLAgent):
             'log_probs': [],
             'values': [],
             'rewards': [],
-            'dones': []
+            'terminated': [],  # NEW: Natural episode endings
+            'truncated': [],   # NEW: Time limit endings
+            'dones': []        # Keep for backward compatibility
         }
     
     def save_model(self, path: str):
@@ -576,7 +591,14 @@ class IPPO(MARLAlgorithm):
     
     def _get_obs_space(self) -> Dict:
         """Get observation space specification from environment."""
-        sample_obs = self.env.reset()
+        reset_result = self.env.reset()
+        if isinstance(reset_result, tuple) and len(reset_result) == 2:
+            # New API: (obs, info)
+            sample_obs, _ = reset_result
+        else:
+            # Old API: just obs
+            sample_obs = reset_result
+            
         obs_space = {}
         
         if isinstance(sample_obs, dict):
@@ -607,8 +629,19 @@ class IPPO(MARLAlgorithm):
         values = []
         log_probs = []
         
-        obs = env.reset()
+        # Reset environment with new API
+        reset_result = env.reset()
+        if isinstance(reset_result, tuple) and len(reset_result) == 2:
+            # New API: (obs, info)
+            obs, info = reset_result
+        else:
+            # Old API: just obs
+            obs = reset_result
+            info = {}
+            
         done = False
+        terminated = False
+        truncated = False
         step_count = 0
         
         while not done and step_count < self.rollout_length:
@@ -641,15 +674,30 @@ class IPPO(MARLAlgorithm):
             values.append(agent_values)
             
             # Take environment step
-            next_obs, reward, done, info = env.step(agent_actions)
+            step_result = env.step(agent_actions)
             
-            # Store rewards and done flags
+            # Handle both old and new API formats
+            if len(step_result) == 4:
+                # Old API: (obs, reward, done, info)
+                next_obs, reward, done, info = step_result
+                terminated = done
+                truncated = False
+            elif len(step_result) == 5:
+                # New API: (obs, reward, terminated, truncated, info)
+                next_obs, reward, terminated, truncated, info = step_result
+                done = terminated or truncated
+            else:
+                raise ValueError(f"Unexpected step return format: {len(step_result)} values")
+            
+            # Store rewards and episode ending flags
             if isinstance(reward, list):
                 rewards.append(reward)
             else:
                 rewards.append([reward] * self.n_agents)
             
             dones.append([done] * self.n_agents)
+            terminated_flags = [terminated] * self.n_agents
+            truncated_flags = [truncated] * self.n_agents
             
             # Store transitions in agent memories
             for i, agent in enumerate(self.agents):
@@ -666,7 +714,7 @@ class IPPO(MARLAlgorithm):
                 agent_reward = reward[i] if isinstance(reward, list) else reward
                 agent.store_transition(
                     agent_obs, agent_actions[i], agent_log_probs[i], 
-                    agent_values[i], agent_reward, done
+                    agent_values[i], agent_reward, terminated_flags[i], truncated_flags[i]
                 )
             
             obs = next_obs
@@ -674,8 +722,9 @@ class IPPO(MARLAlgorithm):
             self.total_steps += 1
         
         # Get final values for bootstrapping
+        # CRITICAL: Only bootstrap if episode was truncated (time limit), not terminated (natural end)
         final_values = []
-        if not done:
+        if not terminated:  # Changed from 'not done' to 'not terminated'
             for i, agent in enumerate(self.agents):
                 if isinstance(obs, dict):
                     agent_obs = {}
@@ -739,6 +788,136 @@ class IPPO(MARLAlgorithm):
         
         return averaged_metrics
     
+    def train_step_vectorized(self, rollout_data: Dict) -> Dict[str, float]:
+        """
+        Perform one training step using vectorized rollout data.
+        
+        This method handles data from multiple parallel environments for
+        significantly improved training efficiency.
+        
+        Args:
+            rollout_data: Vectorized data from parallel environments
+                        Contains: observations, actions, rewards, dones, n_envs
+                        
+        Returns:
+            Dictionary containing training metrics
+        """
+        n_envs = rollout_data.get('n_envs', 1)
+        episode_rewards = rollout_data.get('episode_rewards', [])
+        episode_lengths = rollout_data.get('episode_lengths', [])
+        
+        # Process vectorized data for each agent
+        metrics = {}
+        
+        # Convert vectorized data to format suitable for agent updates
+        for i, agent in enumerate(self.agents):
+            # Aggregate experiences from all environments for this agent
+            agent_experiences = self._aggregate_agent_experiences(rollout_data, i, n_envs)
+            
+            # Update agent with aggregated experiences
+            if agent_experiences['observations']:
+                agent_metrics = agent.update(final_value=0.0)  # Vectorized environments auto-reset
+                
+                # Aggregate metrics
+                for key, value in agent_metrics.items():
+                    if key not in metrics:
+                        metrics[key] = []
+                    metrics[key].append(value)
+        
+        # Average metrics across agents
+        averaged_metrics = {}
+        for key, values in metrics.items():
+            if values:  # Only average if we have values
+                averaged_metrics[f'mean_{key}'] = np.mean(values)
+                averaged_metrics[f'std_{key}'] = np.std(values)
+        
+        # Add vectorized episode-level metrics
+        averaged_metrics['episode_length'] = np.mean(episode_lengths) if episode_lengths else 0
+        averaged_metrics['total_steps'] = self.total_steps
+        averaged_metrics['mean_episode_reward'] = np.mean(episode_rewards) if episode_rewards else 0
+        averaged_metrics['vectorized_envs'] = n_envs
+        averaged_metrics['total_reward_all_envs'] = np.sum(episode_rewards) if episode_rewards else 0
+        averaged_metrics['min_episode_reward'] = np.min(episode_rewards) if episode_rewards else 0
+        averaged_metrics['max_episode_reward'] = np.max(episode_rewards) if episode_rewards else 0
+        averaged_metrics['std_episode_reward'] = np.std(episode_rewards) if episode_rewards else 0
+        
+        return averaged_metrics
+    
+    def _aggregate_agent_experiences(self, rollout_data: Dict, agent_idx: int, n_envs: int) -> Dict:
+        """
+        Aggregate experiences for a specific agent from all vectorized environments.
+        
+        Args:
+            rollout_data: Vectorized rollout data
+            agent_idx: Index of the agent to aggregate for
+            n_envs: Number of parallel environments
+            
+        Returns:
+            Dictionary containing aggregated experiences for the agent
+        """
+        observations = rollout_data.get('observations', [])
+        actions = rollout_data.get('actions', [])
+        rewards = rollout_data.get('rewards', [])
+        
+        agent_obs = []
+        agent_actions = []
+        agent_rewards = []
+        
+        # Extract agent data from all environments and time steps
+        for step_obs in observations:
+            for env_idx in range(min(len(step_obs), n_envs)):
+                if isinstance(step_obs[env_idx], list) and len(step_obs[env_idx]) > agent_idx:
+                    # Multi-agent observation
+                    agent_obs.append(step_obs[env_idx][agent_idx])
+                elif not isinstance(step_obs[env_idx], list):
+                    # Single agent observation
+                    agent_obs.append(step_obs[env_idx])
+        
+        for step_actions in actions:
+            for env_idx in range(min(len(step_actions), n_envs)):
+                if isinstance(step_actions[env_idx], list) and len(step_actions[env_idx]) > agent_idx:
+                    agent_actions.append(step_actions[env_idx][agent_idx])
+                elif not isinstance(step_actions[env_idx], list):
+                    agent_actions.append(step_actions[env_idx])
+        
+        for step_rewards in rewards:
+            for env_idx in range(min(len(step_rewards), n_envs)):
+                if isinstance(step_rewards[env_idx], list) and len(step_rewards[env_idx]) > agent_idx:
+                    agent_rewards.append(step_rewards[env_idx][agent_idx])
+                elif not isinstance(step_rewards[env_idx], list):
+                    agent_rewards.append(step_rewards[env_idx])
+        
+        return {
+            'observations': agent_obs,
+            'actions': agent_actions,
+            'rewards': agent_rewards
+        }
+    
+    def get_actions_batch(self, obs_batch, training: bool = True):
+        """
+        Get actions for a batch of observations efficiently.
+        
+        Args:
+            obs_batch: Batch of observations
+            training: Whether in training mode
+            
+        Returns:
+            Batch of actions
+        """
+        if not isinstance(obs_batch, list):
+            obs_batch = [obs_batch]
+        
+        actions = []
+        for obs in obs_batch:
+            agent_actions = []
+            for i, agent in enumerate(self.agents):
+                agent_obs = self._extract_agent_obs(obs, i)
+                action, _, _ = agent.get_action(agent_obs, training=training)
+                agent_actions.append(action)
+            actions.append(agent_actions)
+        
+        return actions[0] if len(actions) == 1 else actions
+    
     def evaluate(self, env, num_episodes: int = 10) -> Dict[str, float]:
         """
         Evaluate the current policy.
@@ -754,8 +933,19 @@ class IPPO(MARLAlgorithm):
         episode_lengths = []
         
         for episode in range(num_episodes):
-            obs = env.reset()
+            # Reset environment with new API
+            reset_result = env.reset()
+            if isinstance(reset_result, tuple) and len(reset_result) == 2:
+                # New API: (obs, info)
+                obs, info = reset_result
+            else:
+                # Old API: just obs
+                obs = reset_result
+                info = {}
+                
             done = False
+            terminated = False
+            truncated = False
             episode_reward = [0.0] * self.n_agents
             episode_length = 0
             
@@ -778,7 +968,20 @@ class IPPO(MARLAlgorithm):
                     agent_actions.append(action)
                 
                 # Take environment step
-                obs, reward, done, _ = env.step(agent_actions)
+                step_result = env.step(agent_actions)
+                
+                # Handle both old and new API formats
+                if len(step_result) == 4:
+                    # Old API: (obs, reward, done, info)
+                    obs, reward, done, info = step_result
+                    terminated = done
+                    truncated = False
+                elif len(step_result) == 5:
+                    # New API: (obs, reward, terminated, truncated, info)
+                    obs, reward, terminated, truncated, info = step_result
+                    done = terminated or truncated
+                else:
+                    raise ValueError(f"Unexpected step return format: {len(step_result)} values")
                 
                 # Accumulate rewards
                 if isinstance(reward, list):

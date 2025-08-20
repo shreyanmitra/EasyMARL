@@ -126,7 +126,7 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "easymarl-gui=easymarl.gui:main",
+            "easymarl-gui=easymarl:launch_gui",
             "easymarl-train=easymarl.main:cli_main",
             "easymarl-demo=easymarl.examples.demo:main"
         ]

@@ -86,6 +86,9 @@ from utils import (
 # GLOBAL CONFIGURATION: Environment and Algorithm Specifications
 # =============================================================================
 
+# Educational mode setting - can be modified at runtime
+EDUCATIONAL_MODE = True
+
 # Supported Multi-Agent Environments
 # These environments are available for training through the GUI interface
 AVAILABLE_ENVS = ["MultiGrid-Cluttered-Fixed-15x15"]
@@ -1058,4 +1061,32 @@ with gr.Blocks(title="EasyMARL Framework", theme=gr.themes.Soft()) as interface:
     gr.Markdown("**🏆 EasyMARL Framework** - Comprehensive MARL with 21+ algorithms | Built with modern architecture for research and education")
     gr.Markdown("💫 **Features**: Real-time training graphs, WandB integration, comprehensive algorithm catalog, downloadable results")
 
-interface.launch(share = True, debug = False)
+def main(port=7860, share=False, educational_mode=True):
+    """
+    Main function to launch the Gradio interface.
+    
+    Args:
+        port (int): Port to run the interface on
+        share (bool): Whether to create a shareable public link
+        educational_mode (bool): Enable educational explanations
+    """
+    # Set educational mode globally if needed
+    global EDUCATIONAL_MODE
+    EDUCATIONAL_MODE = educational_mode
+    
+    print(f"🎓 EasyMARL Gradio Interface")
+    print(f"📡 Server starting on port {port}")
+    if educational_mode:
+        print("🎓 Educational mode: Detailed explanations enabled")
+    
+    interface.launch(
+        server_port=port,
+        share=share, 
+        debug=False,
+        show_error=True,
+        quiet=False
+    )
+
+# Default launch for direct script execution
+if __name__ == "__main__":
+    main()

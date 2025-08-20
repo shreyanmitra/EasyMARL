@@ -2,12 +2,13 @@
 
 [![PyPI version](https://badge.fury.io/py/easymarl.svg)](https://badge.fury.io/py/easymarl)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.s├── api/                           # Web API for local/Codespaces
-│   ├── flask_backend.py           # Main Flask server
-│   ├── minimal.py                 # Lightweight API serverds.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub stars](https://img.shields.io/github/stars/shreyanmitra/EasyMARL.svg)](https://github.com/shreyanmitra/EasyMARL/stargazers)
+[![Documentation](https://img.shields.io/badge/Docs-📖_Official-blue?logo=react)](https://shreyanmitra.github.io/EasyMARL)
 
 > *Making Multi-Agent Reinforcement Learning accessible to everyone - from students to researchers*
+
+📖 **[View Official Documentation](https://shreyanmitra.github.io/EasyMARL)** | 🚀 **[Quick Start Guide](https://shreyanmitra.github.io/EasyMARL/docs)** | 🧮 **[Algorithm Library](https://shreyanmitra.github.io/EasyMARL/algorithms)**
 
 EasyMARL is a comprehensive, beginner-friendly framework for multi-agent reinforcement learning that bridges the gap between educational simplicity and research-ready performance. Whether you're learning MARL for the first time or conducting cutting-edge research, EasyMARL provides the tools you need.
 
@@ -36,68 +37,106 @@ EasyMARL is a comprehensive, beginner-friendly framework for multi-agent reinfor
 - **Performance Profiling**: Memory and compute usage analysis
 - **Video Generation**: Create videos of trained agent behavior
 
-## 🚀 Quick Start
+## 🚀 Three Ways to Use EasyMARL
 
-### 🎓 GitHub Codespaces (FREE - Recommended for Students)
+> **📖 [Complete Deployment Guide](DEPLOYMENT.md)** - Detailed setup instructions for all methods
 
-**Instant ML development environment - no installation required!**
+EasyMARL offers **3 primary deployment methods** to suit different needs:
+
+### ⚡ **Quick Start Options**
+
+```bash
+# Method 1: Python Library (30 seconds)
+pip install easymarl && python -c "import easymarl; easymarl.launch_gui()"
+
+# Method 2: GitHub Codespaces (30 seconds)  
+# Click: https://codespaces.new/shreyanmitra/EasyMARL
+
+# Method 3: Local Web Interface (5 minutes)
+git clone https://github.com/shreyanmitra/EasyMARL.git
+cd EasyMARL && ./tools/start-easymarl.sh
+```
+
+### 🌐 **Method 1: React Frontend + Flask Backend (Local)**
+
+**Best for**: Full-featured development, complete control, local resources
+
+```bash
+# Install EasyMARL
+pip install easymarl
+
+# Clone repository for web interface
+git clone https://github.com/shreyanmitra/EasyMARL.git
+cd EasyMARL
+
+# Start both frontend and backend
+./tools/start-easymarl.sh
+
+# Access web interface:
+# Frontend: http://localhost:3000
+# Backend API: http://localhost:5000/api
+```
+
+**Features**: 
+- ✅ Complete web interface with real-time training monitoring
+- ✅ REST API for programmatic access
+- ✅ All algorithms and environments available
+- ✅ Experiment tracking with Weights & Biases
+
+### ☁️ **Method 2: GitHub Codespaces (Cloud)**
+
+**Best for**: Students, no-setup experience, cloud development
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/shreyanmitra/EasyMARL)
 
 ```bash
 # 1. Click "Open in GitHub Codespaces" above
-# 2. Wait 3-5 minutes for environment setup
-# 3. Run the quick start command:
-./tools/start-easymarl.sh
+# 2. Wait 3-5 minutes for automatic environment setup
+# 3. Services start automatically on creation
 
-# Access your app:
-# - Frontend: https://CODESPACE-NAME-3000.app.github.dev  
-# - Backend:  https://CODESPACE-NAME-5000.app.github.dev/api
+# Access your cloud environment:
+# Frontend: https://CODESPACE-NAME-3000.app.github.dev  
+# Backend: https://CODESPACE-NAME-5000.app.github.dev/api
 ```
 
-**Benefits with GitHub Student Pack:**
-- ✅ **180 hours/month FREE** 
-- ✅ **Full ML environment** (PyTorch, JAX, all dependencies)
+**Benefits**: 
+- ✅ **FREE with GitHub Student Pack** (180 hours/month)
+- ✅ **Zero installation** - works in your browser
+- ✅ **Full ML environment** with GPU support
 - ✅ **8GB RAM + 4 CPU cores**
-- ✅ **GPU support available**
-- ✅ **No local setup required**
 
-### 💻 Local Installation
+### 🐍 **Method 3: Gradio Interface (Python Library)**
 
-```bash
-# Basic installation
-pip install easymarl
-
-# With enhanced features (10x faster)
-pip install easymarl[enhanced]
-
-# Full installation with GUI and tracking
-pip install easymarl[all]
-```
-
-### 30-Second Demo
+**Best for**: Quick experimentation, Jupyter notebooks, research workflows
 
 ```python
+# Install and use directly in Python
+pip install easymarl
+
 import easymarl
 
-# Launch interactive web GUI (recommended for beginners)
+# Launch Gradio web interface (one line!)
 easymarl.launch_gui()
 
-# Or use Python API
+# Or use programmatic API
 env = easymarl.make_env("MultiGrid-Empty-6x6-v0")
-controller = easymarl.SimpleMultiAgentController(
+controller = easymarl.UnifiedMultiAgentController(
     env=env,
     algorithm="qmix",
-    config=easymarl.get_default_config("qmix")
+    educational_mode=True  # Detailed explanations for learning
 )
 
-# Train agents
+# Train agents with progress tracking
 controller.train(episodes=1000)
-
-# Evaluate performance
 results = controller.evaluate()
 print(f"Average reward: {results['avg_reward']:.2f}")
 ```
+
+**Advantages**:
+- ✅ **Simplest setup** - just one `pip install`
+- ✅ **Jupyter notebook friendly**
+- ✅ **Educational mode** with detailed explanations
+- ✅ **Self-contained** - no separate backend needed
 
 ### Command Line Interface
 
@@ -434,47 +473,38 @@ If you use EasyMARL in your research, please cite:
 - **Visual learning**: Rich visualizations and animations
 - **Local development**: Optimized for GitHub Codespaces and local environments
 
-## � Deployment
+## 🎯 Deployment Options
 
-EasyMARL is designed for local development and GitHub Codespaces only.
+Choose the deployment method that best fits your needs:
 
-### 🎓 GitHub Codespaces (Recommended)
+| Method | Best For | Setup Time | Features | Cost |
+|--------|----------|------------|----------|------|
+| **React + Flask** | Full development, local control | 5 minutes | Complete web interface, all features | Free |
+| **GitHub Codespaces** | Students, zero-setup, cloud | 30 seconds | Browser-based, GPU support | Free* |
+| **Gradio (Python)** | Quick experiments, notebooks | 30 seconds | Self-contained, educational mode | Free |
+
+*Free with GitHub Student Pack (180 hours/month)
+
+### Quick Setup Commands
+
 ```bash
-# Open in Codespaces - services start automatically
-# Frontend: https://CODESPACE-3000.app.github.dev
-# Backend: https://CODESPACE-5000.app.github.dev/api
+# Method 1: Local React + Flask
+git clone https://github.com/shreyanmitra/EasyMARL.git
+cd EasyMARL && ./tools/start-easymarl.sh
+
+# Method 2: GitHub Codespaces  
+# Click: https://codespaces.new/shreyanmitra/EasyMARL
+
+# Method 3: Gradio (Python)
+pip install easymarl && python -c "import easymarl; easymarl.launch_gui()"
 ```
-
-### 💻 Local Development
-```bash
-# Clone repository and start services
-./tools/start-easymarl.sh
-
-# Access locally
-# Frontend: http://localhost:3000
-# Backend: http://localhost:5000/api
-```
-
-### 📱 React Demo (GitHub Pages)
-```bash
-# Build React app for demo showcase (frontend only)
-cd gui/react-frontend
-npm run build
-
-# Demo deployment - no training capabilities
-```
-
-### ⚙️ Configuration
-- **React Frontend**: Configure environment variables for local development
-- **Flask Backend**: Use environment variables for Codespaces configuration  
-- **GitHub Actions**: Automated GitHub Pages deployment for frontend demos
 
 ## �📞 Support
 
 - **📧 Email**: shreyan.m.mitra@gmail.com
 - **💬 Discussions**: [GitHub Discussions](https://github.com/shreyanmitra/EasyMARL/discussions)
 - **🐛 Bug Reports**: [GitHub Issues](https://github.com/shreyanmitra/EasyMARL/issues)
-- **📖 Documentation**: [Wiki](https://github.com/shreyanmitra/EasyMARL/wiki)
+- **📖 Documentation**: [Official Docs](https://shreyanmitra.github.io/EasyMARL)
 
 ## � License
 
@@ -495,6 +525,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 [![GitHub](https://img.shields.io/badge/GitHub-EasyMARL-blue?logo=github)](https://github.com/shreyanmitra/EasyMARL)
 [![PyPI](https://img.shields.io/badge/PyPI-easymarl-blue?logo=pypi)](https://pypi.org/project/easymarl/)
-[![Documentation](https://img.shields.io/badge/Docs-Wiki-blue?logo=wikipedia)](https://github.com/shreyanmitra/EasyMARL/wiki)
+[![Documentation](https://img.shields.io/badge/Docs-Official-blue?logo=react)](https://shreyanmitra.github.io/EasyMARL)
 
 </div>

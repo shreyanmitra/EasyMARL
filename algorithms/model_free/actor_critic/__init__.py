@@ -11,6 +11,8 @@ Algorithms:
 - MAVEN: Multi-Agent Variational Exploration
 - DCG: Deep Coordination Graphs  
 - NFSP: Neural Fictitious Self-Play
+- MADDPG: Multi-Agent Deep Deterministic Policy Gradient (moved from policy_based)
+- MADDPG-Comm: MADDPG with communication (moved from policy_based)
 """
 
 # Import all algorithms
@@ -20,5 +22,10 @@ from .maacc import MAACCAlgorithm
 from .maven import MAVENAlgorithm
 from .dcg import DCGAlgorithm
 from .nfsp import NFSPAlgorithm
+from .maddpg import MADDPG
+from .maddpgcomm import MADDPGComm
 
-__all__ = ['COMAAlgorithm', 'COMACommAlgorithm', 'MAACCAlgorithm', 'MAVENAlgorithm', 'DCGAlgorithm', 'NFSPAlgorithm']
+__all__ = [
+    'COMAAlgorithm', 'COMACommAlgorithm', 'MAACCAlgorithm', 'MAVENAlgorithm', 
+    'DCGAlgorithm', 'NFSPAlgorithm', 'MADDPG', 'MADDPGComm'
+]

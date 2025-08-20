@@ -44,8 +44,8 @@ from .model_free.value_based.tabular.lql import LQL
 from .model_free.policy_based.discrete_action.ippo import IPPO
 from .model_free.policy_based.discrete_action.mappo import MAPPO
 
-from .model_free.policy_based.continuous_action.maddpg import MADDPG
-from .model_free.policy_based.continuous_action.maddpgcomm import MADDPGComm
+from .model_free.actor_critic.maddpg import MADDPG
+from .model_free.actor_critic.maddpgcomm import MADDPGComm
 
 from .model_free.actor_critic.coma import COMA
 from .model_free.actor_critic.comacomm import COMAComm

@@ -151,13 +151,13 @@ class AlgorithmTaxonomy:
                 ModelFreeCategory.POLICY_BASED: {
                     PolicyBasedCategory.DISCRETE_ACTION: [
                         'ippo', 'mappo'
-                    ],
-                    PolicyBasedCategory.CONTINUOUS_ACTION: [
-                        'maddpg', 'maddpgcomm'
                     ]
+                    # Note: Removed continuous_action category since MultiGrid uses discrete actions
+                    # MADDPG moved to actor_critic as it's fundamentally an actor-critic algorithm
                 },
                 ModelFreeCategory.ACTOR_CRITIC: [
-                    'coma', 'comacomm', 'maacc', 'maven', 'dcg', 'nfsp'
+                    'coma', 'comacomm', 'maacc', 'maven', 'dcg', 'nfsp', 
+                    'maddpg', 'maddpgcomm'  # Moved from policy_based/continuous_action
                 ]
             },
             AlgorithmCategory.MODEL_BASED: {
