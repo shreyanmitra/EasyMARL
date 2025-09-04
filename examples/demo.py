@@ -296,6 +296,112 @@ def demo_single_algorithm():
 
 
 def demo_algorithm_features():
+    """Demo algorithm features and capabilities."""
+    print("🔧 Algorithm Features Demo")
+    print("=" * 60)
+    
+    algorithms_info = {
+        'ippo': "Independent learning with PPO - good for simple cooperation",
+        'maddpg': "Centralized training for non-stationary environments",
+        'qmix': "Value decomposition for cooperative tasks",
+        'mappo': "Centralized critics with decentralized policies"
+    }
+    
+    print("Available Algorithms and Their Features:")
+    print("-" * 50)
+    
+    for alg, description in algorithms_info.items():
+        print(f"• {alg.upper():<8}: {description}")
+    
+    print(f"\nFor detailed algorithm information, run:")
+    print(f"python main.py --list_algorithms")
+
+
+def run_basic_demo(quick=False):
+    """Run basic demo for CLI integration."""
+    episodes = 50 if quick else 200
+    print(f"🎮 Running Basic EasyMARL Demo ({episodes} episodes)")
+    
+    try:
+        from main import main as main_func
+        import argparse
+        
+        # Create demo args
+        args = argparse.Namespace(
+            algorithm='ippo',
+            env_name='MultiGrid-Empty-6x6-v0',
+            episodes=episodes,
+            evaluate=True,
+            visualize=False,
+            debug=True,
+            vectorized=False,
+            n_envs=1,
+            seed=42,
+            keep_training=False,
+            wandb_project='EasyMARL-Demo',
+            list_algorithms=False
+        )
+        
+        print("🧠 Training IPPO agents...")
+        main_func(args)
+        print("✅ Basic demo completed successfully!")
+        
+    except Exception as e:
+        print(f"❌ Demo failed: {e}")
+        print("💡 Try running: python main.py --algorithm ippo --episodes 50")
+
+
+def run_algorithm_comparison(quick=False):
+    """Run algorithm comparison demo for CLI integration."""
+    episodes = 100 if quick else 500
+    algorithms = ['ippo', 'qmix', 'vdn']
+    
+    print(f"⚖️ Running Algorithm Comparison Demo ({episodes} episodes each)")
+    print(f"Algorithms: {', '.join([a.upper() for a in algorithms])}")
+    
+    try:
+        from main import main as main_func
+        import argparse
+        
+        results = {}
+        
+        for algo in algorithms:
+            print(f"\n🧠 Training {algo.upper()}...")
+            
+            args = argparse.Namespace(
+                algorithm=algo,
+                env_name='MultiGrid-Empty-6x6-v0',
+                episodes=episodes,
+                evaluate=True,
+                visualize=False,
+                debug=True,
+                vectorized=False,
+                n_envs=1,
+                seed=42,
+                keep_training=False,
+                wandb_project=f'EasyMARL-Compare-{algo}',
+                list_algorithms=False
+            )
+            
+            try:
+                result = main_func(args)
+                results[algo] = "✅ Success"
+            except Exception as e:
+                results[algo] = f"❌ Failed: {e}"
+        
+        print("\n📊 Comparison Results:")
+        print("-" * 30)
+        for algo, result in results.items():
+            print(f"{algo.upper()}: {result}")
+            
+        print("✅ Algorithm comparison demo completed!")
+        
+    except Exception as e:
+        print(f"❌ Comparison demo failed: {e}")
+        print("💡 Try running individual algorithms with: python main.py --algorithm <name>")
+
+
+def main():
     """Demonstrate specific features of different algorithms."""
     print("🔧 Algorithm Features Demo")
     print("=" * 60)

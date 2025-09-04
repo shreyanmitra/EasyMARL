@@ -29,8 +29,12 @@ from .algorithms import *
 from .controllers import *
 from .environments import *
 
-# Import CLI components
-from .cli import *
+# Import CLI components (with fallback for compatibility)
+try:
+    from .cli import *
+except ImportError:
+    # CLI module not available - this is okay for basic functionality
+    pass
 
 # GUI launcher function
 def launch_gui(port=7860, share=False, educational_mode=True):

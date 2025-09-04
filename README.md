@@ -1,9 +1,11 @@
 # 🎓 EasyMARL - Educational Multi-Agent Reinforcement Learning Framework
 
 [![PyPI version](https://badge.fury.io/py/easymarl.svg)](https://badge.fury.io/py/easymarl)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub stars](https://img.shields.io/github/stars/shreyanmitra/EasyMARL.svg)](https://github.com/shreyanmitra/EasyMARL/stargazers)
+[![Tests](https://img.shields.io/badge/Tests-Comprehensive-green.svg)](#testing)
+[![CLI](https://img.shields.io/badge/CLI-Full_Support-blue.svg)](#command-line-interface)
 [![Documentation](https://img.shields.io/badge/Docs-📖_Official-blue?logo=react)](https://shreyanmitra.github.io/EasyMARL)
 
 > *Making Multi-Agent Reinforcement Learning accessible to everyone - from students to researchers*
@@ -23,6 +25,8 @@ EasyMARL is a comprehensive, beginner-friendly framework for multi-agent reinfor
 ### 🚀 **Research Ready**
 - **🧠 21+ MARL Algorithms**: All algorithms comprehensively implemented in a single unified framework
 - **📚 Single Algorithm Library**: All state-of-the-art algorithms organized by taxonomy in [`algorithms/__init__.py`](algorithms/__init__.py)
+- **🖥️ Full CLI Support**: Complete command-line interface for training, evaluation, and management
+- **🧪 Comprehensive Testing**: Extensive test suite ensuring reliability and correctness
 - **🧠 Custom Neural Networks**: 4 built-in architectures (FeedForward, CNN, Attention, Residual) + custom network support
 - **🔬 Enhanced Performance**: Vectorized environments and optional JIT compilation
 - **📈 Scalable Architecture**: Handle complex multi-agent scenarios
@@ -39,27 +43,67 @@ EasyMARL is a comprehensive, beginner-friendly framework for multi-agent reinfor
 - **Performance Profiling**: Memory and compute usage analysis
 - **Video Generation**: Create videos of trained agent behavior
 
-## 🚀 Three Ways to Use EasyMARL
+## 🚀 Four Ways to Use EasyMARL
 
-> **📖 [Complete Deployment Guide](DEPLOYMENT.md)** - Detailed setup instructions for all methods
-
-EasyMARL offers **3 primary deployment methods** to suit different needs:
+EasyMARL offers **4 primary deployment methods** to suit different needs:
 
 ### ⚡ **Quick Start Options**
 
 ```bash
-# Method 1: Python Library (30 seconds)
+# Method 1: Command Line Interface (30 seconds)
+pip install easymarl && easymarl-train --algorithm qmix --env MultiGrid-Empty-6x6-v0
+
+# Method 2: Python Library (30 seconds)
 pip install easymarl && python -c "import easymarl; easymarl.launch_gui()"
 
-# Method 2: GitHub Codespaces (30 seconds)  
+# Method 3: GitHub Codespaces (30 seconds)  
 # Click: https://codespaces.new/shreyanmitra/EasyMARL
 
-# Method 3: Local Web Interface (5 minutes)
+# Method 4: Local Web Interface (5 minutes)
 git clone https://github.com/shreyanmitra/EasyMARL.git
 cd EasyMARL && ./tools/start-easymarl.sh
 ```
 
-### 🌐 **Method 1: React Frontend + Flask Backend (Local)**
+### 🖥️ **Method 1: Command Line Interface (NEW!)**
+
+**Best for**: Researchers, batch experiments, automated workflows
+
+```bash
+# Install EasyMARL
+pip install easymarl
+
+# Train agents with CLI
+easymarl-train --algorithm qmix --env MultiGrid-Empty-6x6-v0 --episodes 1000
+
+# Launch GUI
+easymarl-gui
+
+# Run demos
+easymarl-demo --example comparison --quick
+
+# Manage environments
+easymarl-env --list
+easymarl-env --info MultiGrid-Empty-6x6-v0
+
+# Algorithm information
+easymarl-algo --list
+easymarl-algo --info qmix
+easymarl-algo --compare qmix vdn ippo
+
+# Weights & Biases integration
+easymarl-wandb --login
+easymarl-wandb --project my_research
+```
+
+**Features**: 
+- ✅ **Complete CLI suite** with 6 main commands
+- ✅ **Batch experiment support** for research workflows  
+- ✅ **Algorithm comparison tools** built-in
+- ✅ **Environment management** and validation
+- ✅ **Weights & Biases integration** for experiment tracking
+- ✅ **Comprehensive help system** and documentation
+
+### 🌐 **Method 2: React Frontend + Flask Backend (Local)**
 
 **Best for**: Full-featured development, complete control, local resources
 
@@ -85,7 +129,7 @@ cd EasyMARL
 - ✅ All algorithms and environments available
 - ✅ Experiment tracking with Weights & Biases
 
-### ☁️ **Method 2: GitHub Codespaces (Cloud)**
+### ☁️ **Method 3: GitHub Codespaces (Cloud)**
 
 **Best for**: Students, no-setup experience, cloud development
 
@@ -107,7 +151,7 @@ cd EasyMARL
 - ✅ **Full ML environment** with GPU support
 - ✅ **8GB RAM + 4 CPU cores**
 
-### 🐍 **Method 3: Gradio Interface (Python Library)**
+### 🐍 **Method 4: Gradio Interface (Python Library)**
 
 **Best for**: Quick experimentation, Jupyter notebooks, research workflows
 
@@ -140,18 +184,44 @@ print(f"Average reward: {results['avg_reward']:.2f}")
 - ✅ **Educational mode** with detailed explanations
 - ✅ **Self-contained** - no separate backend needed
 
-### Command Line Interface
+## 🖥️ Command Line Interface
+
+EasyMARL provides a comprehensive CLI for all operations:
 
 ```bash
-# Launch web GUI
-easymarl-gui
-
-# Train from command line
+# Training and evaluation
 easymarl-train --algorithm qmix --env MultiGrid-Empty-6x6-v0 --episodes 1000
+easymarl-train --algorithm ippo --vectorized --n_envs 8
 
-# Run demo
-easymarl-demo
+# GUI and demos
+easymarl-gui --interface gradio
+easymarl-demo --example comparison --quick
+
+# Environment management
+easymarl-env --list
+easymarl-env --info MultiGrid-Empty-6x6-v0
+easymarl-env --create my_env --template cluttered
+
+# Algorithm information and comparison
+easymarl-algo --list
+easymarl-algo --info qmix
+easymarl-algo --compare qmix vdn ippo --episodes 200
+easymarl-algo --benchmark --env MultiGrid-Empty-6x6-v0
+
+# Weights & Biases integration
+easymarl-wandb --login
+easymarl-wandb --project my_research --view
 ```
+
+**CLI Features:**
+- ✅ **6 main command groups** covering all functionality
+- ✅ **Comprehensive help system** with examples
+- ✅ **Algorithm comparison tools** for research
+- ✅ **Environment validation** and testing
+- ✅ **Experiment management** with W&B integration
+- ✅ **Batch processing** support for large experiments
+
+> **📖 [Complete CLI Documentation](docs/CLI.md)** - Detailed CLI reference and examples
 
 ## 🧠 Complete Algorithm Library - All 21+ Algorithms in One Framework
 
@@ -378,20 +448,39 @@ EasyMARL/
 │   │   └── enhanced.py             # Performance optimization
 │   ├── config_manager.py           # Configuration management
 │   └── research_interface.py       # Research tools
-├── algorithms/                     # 20+ MARL algorithms
-│   ├── value_based/               # Q-learning, QMIX, VDN
-│   ├── policy_based/              # MADDPG, COMA, MAPPO
-│   ├── actor_critic/              # A3C, IMPALA variants
-│   ├── model_based/               # Model-based approaches
+├── algorithms/                     # 21+ MARL algorithms (ALL IMPLEMENTED)
+│   ├── model_free/                # Model-free algorithms
+│   │   ├── value_based/           # QMIX, VDN, QTRAN, IQL, MFQ + tabular
+│   │   ├── policy_based/          # IPPO, MAPPO, MADDPG variants  
+│   │   └── actor_critic/          # COMA, MAVEN, DCG, NFSP, MAACC
+│   ├── model_based/               # Model-based approaches (future)
+│   ├── base.py                    # Algorithm base classes
 │   └── taxonomy.py                # Algorithm classification
 ├── environments/                   # Environment management
-│   ├── vectorized_env.py          # Vectorized environments
+│   ├── vectorized_env.py          # Vectorized environments  
 │   └── gym_multigrid/             # MultiGrid environments
 ├── controllers/                    # Training controllers
-│   ├── simple_multiagent_controller.py    # Educational
-│   ├── modern_multiagent_controller.py    # Research
-│   └── vectorized_controller.py           # Performance
+│   └── unified_multiagent_controller.py  # Unified controller (IMPLEMENTED)
 ├── networks/                       # Neural network architectures
+│   ├── base_network.py            # Base network classes
+│   ├── custom_networks.py         # 4 built-in architectures
+│   └── multigrid_network.py       # MultiGrid-specific networks
+├── cli/                           # Command Line Interface (NEW!)
+│   ├── main_cli.py                # Training commands (easymarl-train)
+│   ├── wandb_cli.py               # W&B integration (easymarl-wandb) 
+│   ├── env_cli.py                 # Environment management (easymarl-env)
+│   └── algo_cli.py                # Algorithm info (easymarl-algo)
+├── tests/                         # Comprehensive Test Suite (NEW!)
+│   ├── test_algorithms.py         # Algorithm functionality tests
+│   ├── test_environments.py       # Environment validation tests
+│   ├── test_controllers.py        # Controller integration tests
+│   ├── test_utils.py              # Utility function tests
+│   ├── test_integration.py        # End-to-end integration tests
+│   └── __main__.py                # CLI test runner
+├── docs/                          # Documentation (NEW!)
+│   ├── CLI.md                     # Complete CLI documentation
+│   ├── API.md                     # API reference documentation
+│   └── TESTING.md                 # Testing framework documentation
 ├── api/                           # Web API and deployment
 │   ├── flask_backend.py           # Main API server
 │   ├── minimal.py                 # Lightweight deployment
@@ -408,22 +497,51 @@ EasyMARL/
 ├── tools/                         # Utility scripts
 │   ├── start-easymarl.sh          # Start both frontend and backend
 │   ├── start-backend.sh           # Start Flask backend only
-│   ├── start-frontend.sh          # Start React frontend only
-│   └── manual_control_multigrid.py # Manual environment control
-├── tests/                         # Unit tests
-├── main.py                        # CLI entry point
-├── gui.py                         # GUI launcher
-├── api.py                         # API server launcher
+│   └── start-frontend.sh          # Start React frontend only
+├── main.py                        # Main CLI entry point
 ├── setup.py                       # Package configuration
 └── requirements.txt               # Dependencies
 ```
 
 ### Key Entry Points
 
-- **GUI**: `python gui.py` or `easymarl-gui`
-- **CLI**: `python main.py --algorithm qmix` or `easymarl-train`
-- **API**: `python api.py` (for local/Codespaces development)
+- **CLI**: `easymarl-train --algorithm qmix` or `python main.py`
+- **GUI**: `easymarl-gui` or `python -c "import easymarl; easymarl.launch_gui()"`
+- **API**: Start with `./tools/start-easymarl.sh` or individual scripts
+- **Tests**: `python -m tests` or `python -m tests --quick`
 - **Import**: `import easymarl` (for Python integration)
+
+## 🧪 Testing
+
+EasyMARL includes a comprehensive test suite to ensure reliability:
+
+```bash
+# Run all tests
+python -m tests
+
+# Run quick validation tests  
+python -m tests --quick
+
+# Run specific test suite
+python -m tests --suite algorithms
+python -m tests --suite environments
+
+# List available test suites
+python -m tests --list
+
+# Verbose test output
+python -m tests --verbose
+```
+
+**Test Coverage:**
+- ✅ **Algorithm Tests**: Import, creation, basic training functionality
+- ✅ **Environment Tests**: Creation, reset/step, vectorization
+- ✅ **Controller Tests**: Unified controller integration
+- ✅ **Utility Tests**: Configuration, advanced features, research tools
+- ✅ **Integration Tests**: End-to-end pipeline, CLI, API, GUI
+- ✅ **CLI Test Runner**: Easy test management and reporting
+
+> **📖 [Complete Testing Documentation](docs/TESTING.md)** - Detailed testing guide and best practices
 
 ## 🎛️ Web-Based GUI
 
@@ -483,12 +601,28 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -e .[all]
 
 # Run tests
-python -m pytest tests/
+python -m tests
+python -m tests --quick
 
-# Run linting
-flake8 algorithms/ controllers/ core/ api/ gui/
-black algorithms/ controllers/ core/ api/ gui/
+# Run specific test suites
+python -m tests --suite algorithms
+python -m tests --suite integration
+
+# Run linting (if available)
+flake8 algorithms/ controllers/ core/ cli/ api/ gui/
+black algorithms/ controllers/ core/ cli/ api/ gui/
 ```
+
+### Requirements
+
+- **Python 3.11+** (Required)
+- **Node.js 16+** (For React frontend only)
+- **Git** (For cloning and development)
+
+**System Requirements:**
+- **Memory**: 4GB+ RAM recommended
+- **Storage**: 2GB+ free space
+- **GPU**: Optional but recommended for large experiments
 
 ## 📄 Citation
 
@@ -513,7 +647,9 @@ If you use EasyMARL in your research, please cite:
 
 ### For Researchers  
 - **Research ready**: Scale from prototype to publication
-- **Comprehensive algorithms**: 20+ state-of-the-art implementations
+- **Comprehensive algorithms**: 21+ state-of-the-art implementations
+- **CLI for automation**: Complete command-line interface for batch experiments
+- **Comprehensive testing**: Extensive test suite ensuring reliability
 - **Experiment management**: Professional tracking and analysis
 - **Extensible framework**: Easy to add new algorithms and environments
 
@@ -529,6 +665,7 @@ Choose the deployment method that best fits your needs:
 
 | Method | Best For | Setup Time | Features | Cost |
 |--------|----------|------------|----------|------|
+| **CLI Commands** | Research, automation, batch experiments | 30 seconds | Complete CLI suite, algorithm comparison | Free |
 | **React + Flask** | Full development, local control | 5 minutes | Complete web interface, all features | Free |
 | **GitHub Codespaces** | Students, zero-setup, cloud | 30 seconds | Browser-based, GPU support | Free* |
 | **Gradio (Python)** | Quick experiments, notebooks | 30 seconds | Self-contained, educational mode | Free |
@@ -538,14 +675,18 @@ Choose the deployment method that best fits your needs:
 ### Quick Setup Commands
 
 ```bash
-# Method 1: Local React + Flask
+# Method 1: CLI Commands (NEW!)
+pip install easymarl
+easymarl-train --algorithm qmix --env MultiGrid-Empty-6x6-v0
+
+# Method 2: Local React + Flask
 git clone https://github.com/shreyanmitra/EasyMARL.git
 cd EasyMARL && ./tools/start-easymarl.sh
 
-# Method 2: GitHub Codespaces  
+# Method 3: GitHub Codespaces  
 # Click: https://codespaces.new/shreyanmitra/EasyMARL
 
-# Method 3: Gradio (Python)
+# Method 4: Gradio (Python)
 pip install easymarl && python -c "import easymarl; easymarl.launch_gui()"
 ```
 
